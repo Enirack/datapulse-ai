@@ -1,0 +1,24 @@
+<section class="dashboard">
+  <header class="dashboard__intro">
+    <h1>Dashboard</h1>
+    <p>
+      Upload a dataset to get started once ingestion is available. For now, here's the platform's current status.
+    </p>
+    <p
+      class="status"
+      [class.status--online]="backendStatus() === 'online'"
+      [class.status--offline]="backendStatus() === 'offline'"
+    >
+      Backend: {{ backendStatus() }}
+    </p>
+  </header>
+
+  <div class="dashboard__grid">
+    @for (card of placeholderCards; track card.title) {
+      <article class="card">
+        <h2>{{ card.title }}</h2>
+        <p>{{ card.description }}</p>
+      </article>
+    }
+  </div>
+</section>

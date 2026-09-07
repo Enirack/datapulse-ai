@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-datapulse}
+      POSTGRES_USER: ${POSTGRES_USER:-datapulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-datapulse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - datapulse
+
+  data-engine:
+    build: ./data-engine
+    environment:
+      DATA_ENGINE_ENVIRONMENT: dev
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    ports:
+      - "${DATA_ENGINE_PORT:-8021}:8001"
+    networks:
+      - datapulse
+
+  backend:
+    build: ./backend
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: ${DATABASE_URL:-postgresql://datapulse:changeme@postgres:5432/datapulse?serverVersion=16&charset=utf8}
+      CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$$}
+      DATA_ENGINE_URL: ${DATA_ENGINE_URL:-http://data-engine:8001}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      data-engine:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8020}:8000"
+    networks:
+      - datapulse
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    ports:
+      - "${FRONTEND_PORT:-4210}:80"
+    networks:
+      - datapulse
+
+networks:
+  datapulse:
+
+volumes:
+  postgres_data:

@@ -1,0 +1,11 @@
+.git
+**/node_modules
+**/dist
+**/.angular
+**/vendor
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.phpunit.cache
+**/var/cache
+**/var/log
