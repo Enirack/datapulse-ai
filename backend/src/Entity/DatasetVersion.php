@@ -31,18 +31,62 @@ class DatasetVersion
     #[ORM\Column(length: 20, enumType: DatasetVersionKind::class)]
     private DatasetVersionKind $kind;
 
+    /**
+     * Sanitized, display-only filename. Never used to build a filesystem path.
+     */
+    #[ORM\Column(length: 255)]
+    private string $originalFilename;
+
+    /**
+     * Server-generated storage identifier (opaque). Resolved to an actual
+     * filesystem path only inside DatasetStorageInterface implementations.
+     */
     #[ORM\Column(length: 512)]
     private string $storagePath;
+
+    #[ORM\Column(length: 127)]
+    private string $mimeType;
+
+    #[ORM\Column(type: Types::BIGINT)]
+    private int $fileSize;
+
+    /**
+     * SHA-256 hex digest of the stored file's exact bytes.
+     */
+    #[ORM\Column(length: 64)]
+    private string $checksum;
+
+    /**
+     * True if the format validator found cell values that look like
+     * spreadsheet formulas (CSV injection risk). The original file is
+     * never altered because of this; it is only recorded.
+     */
+    #[ORM\Column]
+    private bool $hasFormulaInjectionRisk;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
-    public function __construct(Dataset $dataset, int $versionNumber, DatasetVersionKind $kind, string $storagePath)
-    {
+    public function __construct(
+        Dataset $dataset,
+        int $versionNumber,
+        DatasetVersionKind $kind,
+        string $originalFilename,
+        string $storagePath,
+        string $mimeType,
+        int $fileSize,
+        string $checksum,
+        bool $hasFormulaInjectionRisk,
+    ) {
         $this->dataset = $dataset;
         $this->versionNumber = $versionNumber;
         $this->kind = $kind;
+        $this->originalFilename = $originalFilename;
         $this->storagePath = $storagePath;
+        $this->mimeType = $mimeType;
+        $this->fileSize = $fileSize;
+        $this->checksum = $checksum;
+        $this->hasFormulaInjectionRisk = $hasFormulaInjectionRisk;
         $this->createdAt = new \DateTimeImmutable();
     }
 
@@ -66,9 +110,34 @@ class DatasetVersion
         return $this->kind;
     }
 
+    public function getOriginalFilename(): string
+    {
+        return $this->originalFilename;
+    }
+
     public function getStoragePath(): string
     {
         return $this->storagePath;
+    }
+
+    public function getMimeType(): string
+    {
+        return $this->mimeType;
+    }
+
+    public function getFileSize(): int
+    {
+        return $this->fileSize;
+    }
+
+    public function getChecksum(): string
+    {
+        return $this->checksum;
+    }
+
+    public function hasFormulaInjectionRisk(): bool
+    {
+        return $this->hasFormulaInjectionRisk;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

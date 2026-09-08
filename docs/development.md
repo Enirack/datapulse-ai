@@ -31,6 +31,29 @@ The application containers do **not** auto-run migrations on start (that's a del
 docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
+### JWT keys and uploaded files persist across restarts
+
+`docker/docker-entrypoint.sh` generates the JWT signing keypair on first container start if `config/jwt/{private,public}.pem` are missing, and creates `var/storage/datasets`. Both are backed by named volumes (`backend_jwt`, `backend_storage`) so tokens stay valid and uploaded files survive a `docker compose restart` — only `docker compose down -v` wipes them.
+
+### Try the API
+
+```bash
+# Register + log in
+curl -X POST http://localhost:8020/api/auth/register -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"a-strong-password"}'
+TOKEN=$(curl -s -X POST http://localhost:8020/api/auth/login -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"a-strong-password"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+
+# Upload a dataset
+curl -X POST http://localhost:8020/api/datasets -H "Authorization: Bearer $TOKEN" \
+  -F "file=@./my-data.csv" -F "name=My dataset"
+
+# List / fetch / delete
+curl http://localhost:8020/api/datasets -H "Authorization: Bearer $TOKEN"
+curl http://localhost:8020/api/datasets/<id> -H "Authorization: Bearer $TOKEN"
+curl -X DELETE http://localhost:8020/api/datasets/<id> -H "Authorization: Bearer $TOKEN"
+```
+
 ## Environment variables
 
 Defined in `.env.example` at the repo root (copy to `.env`, which is git-ignored):
@@ -45,6 +68,9 @@ Defined in `.env.example` at the repo root (copy to `.env`, which is git-ignored
 | `DATA_ENGINE_PORT` | Host port for FastAPI | `8021` |
 | `DATA_ENGINE_URL` | Internal URL the backend will use to call the data engine | `http://data-engine:8001` |
 | `FRONTEND_PORT` | Host port for the Angular app (served via nginx) | `4210` |
+| `MAX_UPLOAD_SIZE` | Max accepted dataset upload size, in bytes | `52428800` (50 MiB) |
+
+`DATASET_STORAGE_DIR` (where uploaded files live) is not exposed as a root-level/compose variable on purpose — it's an internal container path (`backend/var/storage/datasets`, backed by the `backend_storage` volume), never something a host-level `.env` should redirect.
 
 No credential has a hardcoded fallback baked into source that isn't also overridable here — `docker-compose.yml` reads every credential through `${VAR:-default}`.
 
@@ -57,8 +83,15 @@ Ports were chosen to avoid clashing with other projects that may already be runn
 cd backend
 composer install
 # create .env.local with a real DATABASE_URL pointing at a local Postgres
+php bin/console lexik:jwt:generate-keypair --skip-if-exists
 php bin/console doctrine:migrations:migrate
 php -S localhost:8000 -t public
+```
+
+To run the test suite locally, create `.env.test.local` pointing `DATABASE_URL` at a real Postgres (tests need a live database — auth and dataset tests are functional, not mocked), then create + migrate the `_test` database once:
+```bash
+php bin/console doctrine:database:create --env=test --if-not-exists
+php bin/console doctrine:migrations:migrate --env=test --no-interaction
 php bin/phpunit
 ```
 
@@ -112,5 +145,9 @@ datapulse-ai/
 
 - **Migrations are not auto-run on container start.** Running migrations automatically on boot is a production-deployment concern (rollback strategy, zero-downtime considerations) that belongs to the "Production readiness" phase, not Foundation. For now, run them manually (see above).
 - **`doctrine/orm` is pinned to `^3.6,!=3.6.8`.** Version `3.6.8` (current at the time of writing) ships a `GenerateSchemaEventArgs::setSchema()` that unconditionally requires DBAL's not-yet-stable `Schema::edit()` API (DBAL `^4.5`, which only has a `dev` release), which breaks every schema-generating command (`doctrine:migrations:diff`, `doctrine:schema:update`) even though it's guarded with `method_exists()`. This is an upstream version-skew bug, not a project defect. Revisit this pin once a fixed `doctrine/orm` patch or a stable DBAL `4.5` ships.
-- **No PHPStan/ESLint yet.** There's no business logic to statically analyze yet beyond the entities/health endpoint; static analysis tooling will be added once real logic lands in the ingestion phase, to avoid a lint config with nothing meaningful to check.
-- **JWT auth is installed but not wired to any endpoint.** `lexik/jwt-authentication-bundle` and `symfony/security-bundle` are configured; register/login endpoints and route protection will be added once there's something worth protecting (dataset ownership, in the ingestion phase).
+- **No PHPStan/ESLint yet.** Deferred again this phase — would be worth adding once phase 3 (profiling) adds another substantial slice of business logic.
+- **A `Dataset` can only get its first `DatasetVersion` via `POST /api/datasets`.** There's no "upload a new version of an existing dataset" endpoint yet — `DatasetVersion.versionNumber` exists for this, but nothing beyond `1` is ever created in this phase. Natural fit for a future `POST /api/datasets/{id}/versions`.
+- **Duplicate-checksum detection is informational only.** A re-upload of identical content creates a brand new `Dataset` + `DatasetVersion` and merely reports `possibleDuplicateOfDatasetId` in the response — it does not block or dedupe storage. Deliberate: rejecting a legitimate re-upload would be more surprising than helpful at this phase.
+- **CSV header/delimiter/encoding detection is best-effort and not persisted.** `CsvValidator` auto-detects the delimiter (needed to scan cells correctly) but doesn't store what it detected — there's no schema field for it yet, and full profiling (including a real header decision) belongs to phase 3.
+- **No per-route rate limiting on `/api/auth/*`.** Brute-force/credential-stuffing protection is out of scope until there's a reason to harden further; noted here rather than silently skipped.
+- **Dataset listing does one query per item for its versions** (`DatasetController::list()`). Fine at the volumes this phase deals with; would want a join or a batched fetch before that stops being true.

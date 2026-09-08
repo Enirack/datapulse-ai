@@ -28,14 +28,8 @@ class Dataset
     #[ORM\Column(length: 255)]
     private string $name;
 
-    #[ORM\Column(length: 255)]
-    private string $originalFilename;
-
-    #[ORM\Column(length: 127)]
-    private string $mimeType;
-
-    #[ORM\Column(type: Types::BIGINT)]
-    private int $sizeBytes;
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $description;
 
     #[ORM\Column(length: 20, enumType: DatasetStatus::class)]
     private DatasetStatus $status;
@@ -43,15 +37,17 @@ class Dataset
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
-    public function __construct(User $owner, string $name, string $originalFilename, string $mimeType, int $sizeBytes)
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+    private \DateTimeImmutable $updatedAt;
+
+    public function __construct(User $owner, string $name, ?string $description = null)
     {
         $this->owner = $owner;
         $this->name = $name;
-        $this->originalFilename = $originalFilename;
-        $this->mimeType = $mimeType;
-        $this->sizeBytes = $sizeBytes;
+        $this->description = $description;
         $this->status = DatasetStatus::Uploaded;
         $this->createdAt = new \DateTimeImmutable();
+        $this->updatedAt = $this->createdAt;
     }
 
     public function getId(): Uuid
@@ -69,19 +65,9 @@ class Dataset
         return $this->name;
     }
 
-    public function getOriginalFilename(): string
+    public function getDescription(): ?string
     {
-        return $this->originalFilename;
-    }
-
-    public function getMimeType(): string
-    {
-        return $this->mimeType;
-    }
-
-    public function getSizeBytes(): int
-    {
-        return $this->sizeBytes;
+        return $this->description;
     }
 
     public function getStatus(): DatasetStatus
@@ -92,10 +78,21 @@ class Dataset
     public function setStatus(DatasetStatus $status): void
     {
         $this->status = $status;
+        $this->touch();
     }
 
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    private function touch(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();
     }
 }

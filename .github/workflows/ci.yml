@@ -12,6 +12,22 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: datapulse
+          POSTGRES_USER: datapulse
+          POSTGRES_PASSWORD: changeme
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U datapulse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://datapulse:changeme@localhost:5432/datapulse?serverVersion=16&charset=utf8
     steps:
       - uses: actions/checkout@v4
 
@@ -19,11 +35,19 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_pgsql, intl
+          extensions: pdo_pgsql, intl, zip
           coverage: none
 
       - name: Install dependencies
         run: composer install --no-progress --prefer-dist
+
+      - name: Generate JWT keypair
+        run: php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction
+
+      - name: Create and migrate test database
+        run: |
+          php bin/console doctrine:database:create --env=test --if-not-exists
+          php bin/console doctrine:migrations:migrate --env=test --no-interaction
 
       - name: Run PHPUnit
         run: php bin/phpunit

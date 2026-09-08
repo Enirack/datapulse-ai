@@ -39,6 +39,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://datapulse:changeme@postgres:5432/datapulse?serverVersion=16&charset=utf8}
       CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$$}
       DATA_ENGINE_URL: ${DATA_ENGINE_URL:-http://data-engine:8001}
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-52428800}
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8000/api/health"]
       interval: 10s
@@ -52,6 +53,9 @@ services:
         condition: service_healthy
     ports:
       - "${BACKEND_PORT:-8020}:8000"
+    volumes:
+      - backend_storage:/app/var/storage
+      - backend_jwt:/app/config/jwt
     networks:
       - datapulse
 
@@ -78,3 +82,5 @@ networks:
 
 volumes:
   postgres_data:
+  backend_storage:
+  backend_jwt:

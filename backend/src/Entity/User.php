@@ -36,11 +36,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
-    public function __construct(string $email, string $password)
+    public function __construct(string $email, string $hashedPassword)
     {
         $this->email = $email;
-        $this->password = $password;
+        $this->password = $hashedPassword;
         $this->createdAt = new \DateTimeImmutable();
+    }
+
+    public function setPassword(string $hashedPassword): void
+    {
+        $this->password = $hashedPassword;
     }
 
     public function getId(): Uuid

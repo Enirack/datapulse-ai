@@ -1,6 +1,8 @@
 vendor/
 var/cache/*
 var/log/*
+var/storage/*
+var/storage_test/*
 .env.local
 .env.local.php
 .git

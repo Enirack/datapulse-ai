@@ -69,8 +69,8 @@ Full setup (including running each service natively without Docker), environment
 
 This project is built incrementally, one phase at a time, never skipping ahead:
 
-1. **Foundation** — monorepo scaffolding, health checks, Docker Compose, domain schema *(current)*
-2. Data ingestion — file upload, validation, untrusted-input protections
+1. Foundation — monorepo scaffolding, health checks, Docker Compose, domain schema
+2. **Data ingestion** — JWT auth, secure file upload, validation, untrusted-input protections *(current)*
 3. Data profiling
 4. Data cleaning and analysis
 5. Visualization and insights
@@ -84,7 +84,7 @@ This project is built incrementally, one phase at a time, never skipping ahead:
 - No analytical result is ever fabricated. Every number shown to a user originates from an actual computation over the dataset.
 - If a dataset doesn't contain enough information to answer a question, the platform says so instead of guessing.
 - Insights are explicitly tagged as a `computed_fact`, a `statistical_interpretation`, or a `recommendation` — never presented as if they were the same kind of claim.
-- Uploaded files are treated as untrusted input. Protections against path traversal, decompression bombs, oversized files, memory exhaustion, CSV injection, and malicious spreadsheet content are scoped into the Data ingestion phase.
+- Uploaded files are treated as untrusted input. Path traversal, decompression bombs, oversized files, memory exhaustion, CSV injection, and malicious spreadsheet content are all actively guarded against — see [`docs/architecture.md`](docs/architecture.md#dataset-ingestion-phase-2) for the full pipeline.
 
 ## Tests
 
@@ -98,4 +98,4 @@ All three run automatically in CI on every push/PR ([`.github/workflows/ci.yml`]
 
 ## Status
 
-**Foundation phase complete.** All three services scaffolded, containerized, health-checked, and wired together via Docker Compose. The six core domain entities (`User`, `Dataset`, `DatasetVersion`, `Analysis`, `Insight`, `Report`) exist as a Doctrine schema with a migration, but no endpoints use them yet. No business logic (ingestion, analysis, AI) is implemented — that starts in Phase 2.
+**Data ingestion phase complete.** Users can register, log in (JWT), and upload CSV/XLSX/JSON files. Every upload is validated (extension + MIME + structural parse), checksummed, scanned for CSV formula injection, and stored on a filesystem abstraction outside the web root — never executed, never trusted by filename alone. Datasets are private to their owner (403/404 enforced on every read/write) and listable with pagination. No profiling, statistics, anomaly detection, visualization, or AI yet — that starts in Phase 3.
