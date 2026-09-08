@@ -33,7 +33,7 @@ docker compose exec backend php bin/console doctrine:migrations:migrate --no-int
 
 ### JWT keys and uploaded files persist across restarts
 
-`docker/docker-entrypoint.sh` generates the JWT signing keypair on first container start if `config/jwt/{private,public}.pem` are missing, and creates `var/storage/datasets`. Both are backed by named volumes (`backend_jwt`, `backend_storage`) so tokens stay valid and uploaded files survive a `docker compose restart` — only `docker compose down -v` wipes them.
+`docker/docker-entrypoint.sh` generates the JWT signing keypair on first container start if `config/jwt/{private,public}.pem` are missing, and creates `var/storage/datasets`. Both are backed by named volumes (`backend_jwt`, `backend_storage`) so tokens stay valid and uploaded files survive a `docker compose restart` — only `docker compose down -v` wipes them. Since phase 4, `backend_storage` is also mounted read-write into the data engine (previously read-only) so a cleaning result can be handed off via `storage/tmp/` without the file crossing the wire as an HTTP payload — see `docs/data-cleaning.md` "Storage sharing".
 
 ### Try the API
 
@@ -56,9 +56,18 @@ curl -X DELETE http://localhost:8020/api/datasets/<id> -H "Authorization: Bearer
 # Profile a dataset version (id from the upload response's versions[0].id)
 curl -X POST "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/profile" -H "Authorization: Bearer $TOKEN"
 curl "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/profile" -H "Authorization: Bearer $TOKEN"
+
+# Get cleaning recommendations (requires the profile call above to have completed first)
+curl "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/cleaning-recommendations" -H "Authorization: Bearer $TOKEN"
+
+# Preview, then apply, a cleaning pipeline
+curl -X POST "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/clean/preview" -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"operations":[{"type":"remove_duplicate_rows"}]}'
+curl -X POST "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/clean" -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"operations":[{"type":"remove_duplicate_rows"}]}'
 ```
 
-Full profiling contract, security model, and limits: [`data-profiling.md`](./data-profiling.md).
+Full profiling contract, security model, and limits: [`data-profiling.md`](./data-profiling.md). Full cleaning contract, transformation catalog, and idempotency strategy: [`data-cleaning.md`](./data-cleaning.md).
 
 ## Environment variables
 
@@ -77,7 +86,7 @@ Defined in `.env.example` at the repo root (copy to `.env`, which is git-ignored
 | `MAX_UPLOAD_SIZE` | Max accepted dataset upload size, in bytes | `52428800` (50 MiB) |
 | `MAX_PROFILABLE_BYTES` | Max file size the data engine will load into memory to profile | `26214400` (25 MiB) |
 
-`DATASET_STORAGE_DIR` (where uploaded files live) and the data engine's own `DATA_ENGINE_STORAGE_DIR`/`DATA_ENGINE_MAX_ROWS`/`DATA_ENGINE_MAX_COLUMNS` are not exposed as root-level/compose variables on purpose — they're internal container paths and tuning knobs (see `docker-compose.yml` and `docs/data-profiling.md`), never something a host-level `.env` should redirect.
+`DATASET_STORAGE_DIR`/`DATASET_TMP_DIR` (Symfony) and the data engine's own `DATA_ENGINE_STORAGE_DIR`/`DATA_ENGINE_TMP_DIR`/`DATA_ENGINE_MAX_ROWS`/`DATA_ENGINE_MAX_COLUMNS` are not exposed as root-level/compose variables on purpose — they're internal container paths and tuning knobs (see `docker-compose.yml`, `docs/data-profiling.md`, `docs/data-cleaning.md`), never something a host-level `.env` should redirect.
 
 No credential has a hardcoded fallback baked into source that isn't also overridable here — `docker-compose.yml` reads every credential through `${VAR:-default}`.
 
@@ -102,7 +111,7 @@ php bin/console doctrine:migrations:migrate --env=test --no-interaction
 php bin/phpunit
 ```
 
-Profiling tests are the one exception to "hit the real thing": `App\Profiling\DataEngineClientInterface` is bound to `App\Tests\Support\FakeDataEngineClient` `when@test` (see `config/services.yaml`), because a natively-run PHPUnit process has no access to the Docker-shared storage volume a real data-engine call would need to read from. Profiling *correctness* is covered by the data engine's own test suite and by manual Docker verification, not by backend unit tests.
+Profiling and cleaning tests are the one exception to "hit the real thing": `App\Profiling\DataEngineClientInterface` (which now covers both) is bound to `App\Tests\Support\FakeDataEngineClient` `when@test` (see `config/services.yaml`), because a natively-run PHPUnit process has no access to the Docker-shared storage volume a real data-engine call would need to read from. The fake still writes a real file under the tmp dir when simulating a data-changing clean, so `CleaningService`'s real commit-to-permanent-storage path is genuinely exercised — only the network/Python boundary is faked. Profiling/cleaning *correctness* is covered by the data engine's own test suite and by manual Docker verification, not by backend unit tests.
 
 **Data engine:**
 ```bash
@@ -154,8 +163,11 @@ datapulse-ai/
 
 - **Migrations are not auto-run on container start.** Running migrations automatically on boot is a production-deployment concern (rollback strategy, zero-downtime considerations) that belongs to the "Production readiness" phase, not Foundation. For now, run them manually (see above).
 - **`doctrine/orm` is pinned to `^3.6,!=3.6.8`.** Version `3.6.8` (current at the time of writing) ships a `GenerateSchemaEventArgs::setSchema()` that unconditionally requires DBAL's not-yet-stable `Schema::edit()` API (DBAL `^4.5`, which only has a `dev` release), which breaks every schema-generating command (`doctrine:migrations:diff`, `doctrine:schema:update`) even though it's guarded with `method_exists()`. This is an upstream version-skew bug, not a project defect. Revisit this pin once a fixed `doctrine/orm` patch or a stable DBAL `4.5` ships.
-- **No PHPStan/ESLint/mypy yet.** Deferred again this phase — three phases of real business logic now exist without it; worth reconsidering before phase 4 adds more.
-- **A `Dataset` can only get its first `DatasetVersion` via `POST /api/datasets`.** There's no "upload a new version of an existing dataset" endpoint yet — `DatasetVersion.versionNumber` exists for this, but nothing beyond `1` is ever created in this phase. Natural fit for a future `POST /api/datasets/{id}/versions`.
+- **No PHPStan/ESLint/mypy yet.** Deferred again this phase — four phases of real business logic now exist without it; worth reconsidering before phase 5 adds more.
+- **A `Dataset` can only get a new `DatasetVersion` via upload or cleaning.** There's still no "upload a replacement file for an existing dataset" endpoint — only cleaning produces a version 2+, and only ever as `kind: cleaned`.
+- **Cleaning has no cross-request locking**, same documented limitation as profiling — see `docs/data-cleaning.md#idempotency`.
+- **Cleaning's `estimatedAffectedRows` preview number can double-count** a row touched by more than one operation in the pipeline — documented in `docs/data-cleaning.md#preview` as a deliberate simplicity/precision tradeoff for a number that's explicitly only an estimate.
+- **Whitespace recommendations only fire on whitespace-*only* cells**, not general leading/trailing whitespace on otherwise-normal values — a real gap in Phase 3's profiling contract (no such stat exists there), documented rather than worked around by re-reading the file at recommendation time. See `docs/data-cleaning.md`.
 - **Duplicate-checksum detection is informational only.** A re-upload of identical content creates a brand new `Dataset` + `DatasetVersion` and merely reports `possibleDuplicateOfDatasetId` in the response — it does not block or dedupe storage. Deliberate: rejecting a legitimate re-upload would be more surprising than helpful at this phase.
 - **No per-route rate limiting on `/api/auth/*`.** Brute-force/credential-stuffing protection is out of scope until there's a reason to harden further; noted here rather than silently skipped.
 - **Dataset listing does one query per item for its versions** (`DatasetController::list()`). Fine at the volumes this phase deals with; would want a join or a batched fetch before that stops being true.

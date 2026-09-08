@@ -12,4 +12,5 @@ namespace App\Enum;
 enum AnalysisType: string
 {
     case Profiling = 'profiling';
+    case Cleaning = 'cleaning';
 }

@@ -12,6 +12,11 @@ use App\Profiling\DataEngineException;
  * HttpDataEngineClient only `when@test` (see config/services.yaml) —
  * a natively-run PHPUnit process has no access to the Docker-shared
  * storage volume a real call would need to read from.
+ *
+ * For "clean" it still writes a *real* file under the configured tmp
+ * dir when simulating a change, so CleaningService's real
+ * DatasetStorageInterface::store() commit is exercised genuinely in
+ * tests — only the network/Python boundary is faked.
  */
 final class FakeDataEngineClient implements DataEngineClientInterface
 {
@@ -19,8 +24,22 @@ final class FakeDataEngineClient implements DataEngineClientInterface
     private ?array $nextSuccessResult = null;
     private ?DataEngineException $nextFailure = null;
 
+    /** @var array<string, mixed>|null */
+    private ?array $nextCleanResult = null;
+    private ?DataEngineException $nextCleanFailure = null;
+
+    /** @var array<string, mixed>|null */
+    private ?array $nextPreviewResult = null;
+
     /** @var list<array{datasetVersionId: string, storageIdentifier: string, extension: string}> */
     private array $calls = [];
+
+    /** @var list<array{datasetVersionId: string, storageIdentifier: string, extension: string, operations: mixed}> */
+    private array $cleanCalls = [];
+
+    public function __construct(private readonly string $tmpDir)
+    {
+    }
 
     /**
      * @param array<string, mixed> $result
@@ -37,16 +56,77 @@ final class FakeDataEngineClient implements DataEngineClientInterface
         $this->nextSuccessResult = null;
     }
 
+    /**
+     * Simulates a cleaning run that changes the data: writes $content to a
+     * real file under the tmp dir and configures the response to match it.
+     *
+     * @param array<int, array<string, mixed>> $operationReports
+     */
+    public function willCleanChangeContentTo(string $content, string $extension = 'csv', array $operationReports = []): void
+    {
+        $identifier = $this->writeTempFile($content, $extension);
+
+        $this->nextCleanResult = [
+            'changed' => true,
+            'tempStorageIdentifier' => $identifier,
+            'checksum' => hash('sha256', $content),
+            'fileSize' => \strlen($content),
+            'mimeType' => 'text/csv',
+            'report' => [
+                'operations' => $operationReports,
+                'before' => ['rows' => 0, 'columns' => 0],
+                'after' => ['rows' => 0, 'columns' => 0],
+            ],
+        ];
+        $this->nextCleanFailure = null;
+    }
+
+    public function willCleanChangeNothing(): void
+    {
+        $this->nextCleanResult = [
+            'changed' => false,
+            'report' => [
+                'operations' => [],
+                'before' => ['rows' => 0, 'columns' => 0],
+                'after' => ['rows' => 0, 'columns' => 0],
+            ],
+        ];
+        $this->nextCleanFailure = null;
+    }
+
+    public function willCleanFail(int $statusCode, string $message): void
+    {
+        $this->nextCleanFailure = DataEngineException::fromResponse($statusCode, $message);
+        $this->nextCleanResult = null;
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    public function willPreviewReturn(array $result): void
+    {
+        $this->nextPreviewResult = $result;
+    }
+
     public function reset(): void
     {
         $this->nextSuccessResult = null;
         $this->nextFailure = null;
+        $this->nextCleanResult = null;
+        $this->nextCleanFailure = null;
+        $this->nextPreviewResult = null;
         $this->calls = [];
+        $this->cleanCalls = [];
     }
 
     public function callCount(): int
     {
         return \count($this->calls);
+    }
+
+    public function cleanCallCount(): int
+    {
+        return \count($this->cleanCalls);
     }
 
     public function profile(string $datasetVersionId, string $storageIdentifier, string $extension): array
@@ -62,6 +142,47 @@ final class FakeDataEngineClient implements DataEngineClientInterface
         }
 
         return $this->nextSuccessResult ?? $this->defaultSuccessResult();
+    }
+
+    public function clean(string $datasetVersionId, string $storageIdentifier, string $extension, array $operations): array
+    {
+        $this->cleanCalls[] = [
+            'datasetVersionId' => $datasetVersionId,
+            'storageIdentifier' => $storageIdentifier,
+            'extension' => $extension,
+            'operations' => $operations,
+        ];
+
+        if ($this->nextCleanFailure !== null) {
+            throw $this->nextCleanFailure;
+        }
+
+        return $this->nextCleanResult ?? $this->defaultCleanResult();
+    }
+
+    public function previewClean(string $datasetVersionId, string $storageIdentifier, string $extension, array $operations): array
+    {
+        return $this->nextPreviewResult ?? [
+            'estimatedAffectedRows' => 0,
+            'operations' => [],
+            'before' => ['rows' => 0, 'columns' => 0],
+            'after' => ['rows' => 0, 'columns' => 0],
+        ];
+    }
+
+    private function writeTempFile(string $content, string $extension): string
+    {
+        $uuid = bin2hex(random_bytes(16));
+        $shard = substr($uuid, 0, 2);
+        $dir = rtrim($this->tmpDir, '/\\').'/'.$shard;
+        if (!is_dir($dir)) {
+            mkdir($dir, 0770, true);
+        }
+
+        $identifier = $shard.'/'.$uuid.'.'.$extension;
+        file_put_contents(rtrim($this->tmpDir, '/\\').'/'.$identifier, $content);
+
+        return $identifier;
     }
 
     /**
@@ -96,6 +217,21 @@ final class FakeDataEngineClient implements DataEngineClientInterface
                         'std' => 1.0, 'variance' => 1.0, 'q25' => 1.5, 'q50' => 2.0, 'q75' => 2.5,
                     ],
                 ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultCleanResult(): array
+    {
+        return [
+            'changed' => false,
+            'report' => [
+                'operations' => [],
+                'before' => ['rows' => 0, 'columns' => 0],
+                'after' => ['rows' => 0, 'columns' => 0],
             ],
         ];
     }

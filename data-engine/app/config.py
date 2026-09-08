@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     # this service's point of view — only the backend ever writes here).
     storage_dir: str = "/app/storage/datasets"
 
+    # A cleaning result is written here, never directly into storage_dir —
+    # the backend is still the only thing that ever writes a *permanent*
+    # dataset file; this is a read-write handoff area both sides share.
+    tmp_dir: str = "/app/storage/tmp"
+
     # Deliberately independent from (and expected to be <=) the backend's
     # MAX_UPLOAD_SIZE: a file can be small enough to accept but still too
     # heavy to safely load into memory for profiling.

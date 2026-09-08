@@ -8,8 +8,8 @@ DataPulse AI turns uploaded tabular datasets into deterministic business intelli
 Dataset
   -> ingestion
   -> validation
-  -> profiling              <- Phase 3 (current)
-  -> cleaning
+  -> profiling
+  -> cleaning                <- Phase 4 (current)
   -> statistical analysis
   -> anomaly detection
   -> visualization data
@@ -25,14 +25,14 @@ Dataset
 |---------------|-------------------------------------------------|----------------|
 | `frontend`    | Angular 22, TypeScript                          | User interface: dashboard, dataset upload, visualizations, chat with the AI analyst. Talks only to `backend`. |
 | `backend`     | Symfony 8, PHP 8.4, Doctrine ORM, PostgreSQL     | REST API, authentication (JWT), persistence, request validation, file ingestion/storage, orchestration of the data engine, and (later) the AI layer. |
-| `data-engine` | Python, FastAPI, Pandas, NumPy, SciPy            | The deterministic analytical core: parsing, profiling, cleaning, statistics, anomaly detection. Produces structured, computed results — never prose. Now called by the backend for profiling (phase 3); cleaning/anomaly detection are still future phases. |
+| `data-engine` | Python, FastAPI, Pandas, NumPy, SciPy            | The deterministic analytical core: parsing, profiling, cleaning, statistics, anomaly detection. Produces structured, computed results — never prose. Now called by the backend for both profiling (phase 3) and cleaning (phase 4); statistics/anomaly detection are still future phases. |
 
 The frontend never talks to the data engine directly, and the data engine never talks to the frontend. The backend is the single entry point and the only service with a database connection and a storage volume; it is also the only service that will hold API credentials for the AI provider once the AI layer is built, so those never reach the browser or the data engine.
 
 ## Communication between services
 
 - **frontend → backend**: HTTPS/JSON over `/api/*`. In production this is proxied by nginx (see `infrastructure/nginx/frontend.conf`); in development it's called directly at `http://localhost:8020`.
-- **backend → data-engine**: HTTP/JSON over the internal Docker network (`http://data-engine:8001`), not exposed to the browser. Used for profiling (phase 3) — see [`data-profiling.md`](./data-profiling.md) for the full contract; the two services also share a read-only-for-the-data-engine storage volume so dataset files never cross the wire.
+- **backend → data-engine**: HTTP/JSON over the internal Docker network (`http://data-engine:8001`), not exposed to the browser. Used for profiling (phase 3, [`data-profiling.md`](./data-profiling.md)) and cleaning (phase 4, [`data-cleaning.md`](./data-cleaning.md)). The two services share a storage volume (read-write for both since phase 4 — see "Data profiling" below) so dataset files and cleaning results never cross the wire as HTTP payloads.
 - **backend → PostgreSQL**: Doctrine DBAL over the internal network.
 
 ## Authentication (phase 2)
@@ -62,7 +62,7 @@ All four require authentication. Ownership is checked explicitly in `DatasetCont
 
 - **User** — account. Password is Argon2id-hashed (`auto`), never serialized in any API response.
 - **Dataset** — the logical dataset: `id`, `owner`, `name`, `description`, `status` (`uploaded → processing → ready / failed`; this phase only ever produces `ready` on success, since the whole pipeline runs synchronously in the request — nothing is left in an ambiguous `processing` state), `createdAt`, `updatedAt`.
-- **DatasetVersion** — one uploaded file: `id`, `dataset`, `versionNumber`, `kind` (`raw` — this phase only ever creates `raw` versions; `cleaned` is reserved for the cleaning phase), `originalFilename` (sanitized, display-only), `storagePath` (opaque server-generated storage identifier — **never returned by the API**), `mimeType` (detected, not trusted from the client), `fileSize`, `checksum` (SHA-256 hex), `hasFormulaInjectionRisk` (bool), `createdAt`.
+- **DatasetVersion** — one uploaded or derived file: `id`, `dataset`, `versionNumber`, `kind` (`raw` for an upload, `cleaned` for a Phase 4 cleaning result), `originalFilename` (sanitized, display-only), `storagePath` (opaque server-generated storage identifier — **never returned by the API**), `mimeType` (detected, not trusted from the client), `fileSize`, `checksum` (SHA-256 hex), `hasFormulaInjectionRisk` (bool), `createdAt`, `sourceVersion` (nullable self-reference — null for an upload, set to the version a cleaning run started from otherwise; see [`data-cleaning.md`](./data-cleaning.md)).
 
 A `Dataset` currently gets exactly one `DatasetVersion` (created together, atomically, by `POST /api/datasets`). Multiple versions per dataset (e.g. "add a new version of this dataset") is a natural fit for `DatasetVersion.versionNumber` but isn't exposed by any endpoint yet — out of scope for this phase.
 
@@ -103,6 +103,17 @@ GET  /api/datasets/{datasetId}/versions/{versionId}/profile   fetch the latest a
 
 Same ownership rule as dataset endpoints, plus a version-scoped check: `404` if the version id doesn't belong to the given dataset. Persisted on the `Analysis` entity (extended this phase with `result`, `resultSchemaVersion`, `errorMessage`, `startedAt`). Full contract, security model, size limits, and type-detection rules: [`data-profiling.md`](./data-profiling.md).
 
+## Data cleaning (phase 4)
+
+```
+GET  /api/datasets/{datasetId}/versions/{versionId}/cleaning-recommendations   derived from the stored profile — no data-engine call
+POST /api/datasets/{datasetId}/versions/{versionId}/clean/preview              dry run, writes nothing
+POST /api/datasets/{datasetId}/versions/{versionId}/clean                      idempotent by default; ?force=true bypasses reuse
+GET  /api/datasets/{datasetId}/versions/{versionId}/clean                      fetch the latest cleaning analysis without triggering one
+```
+
+Same ownership + version-scoping rules as profiling. A successful, data-changing clean creates a new `DatasetVersion` (`kind: cleaned`, `sourceVersion` pointing back at the version that was cleaned) — the version that was cleaned is never modified. `Analysis` gained `resultVersion` (the produced version, nullable), `operations` (the requested pipeline, JSON), and `pipelineFingerprint` (idempotency key) this phase. Full contract, transformation catalog, recommendation rules, conversion-failure policy, and idempotency strategy: [`data-cleaning.md`](./data-cleaning.md).
+
 ## Error handling
 
 All exceptions raised under `/api/*` are caught by `App\EventListener\ApiExceptionListener` and converted to a consistent JSON shape:
@@ -139,6 +150,7 @@ Monolog is configured per environment (`config/packages/monolog.yaml`):
 - Uploaded files are treated as fully untrusted: extension whitelist, MIME cross-check, structural validation, size limits, decompression-bomb protection for XLSX, CSV formula-injection detection, path-traversal-proof storage identifiers, symlink-attack-proof storage resolution. See "Upload validation pipeline" above for the full list mapped to spec requirements.
 - Nothing from an uploaded file is ever executed — not as a shell command, not as a macro, not as a dependency install.
 - The data engine never trusts a storage identifier blindly either, even though it only ever receives one from the trusted backend — same path-containment and symlink checks as the PHP storage class, independently implemented in Python. It has no database access and is never reachable from the browser.
+- Cleaning requests never carry a file path — only a pipeline of operations. The server alone decides which physical file gets read, from the `storagePath` already on record for the version in the URL; there is no field anywhere in the request a client could use to point at an arbitrary file.
 - CORS is restricted to `localhost`/`127.0.0.1` origins by default (`CORS_ALLOW_ORIGIN`).
 - No secrets are committed. `.env` in `backend/` ships with the Symfony skeleton's public dev defaults plus non-secret app defaults (`MAX_UPLOAD_SIZE`, `DATASET_STORAGE_DIR`); JWT keys and real per-environment secrets are git-ignored (`.env.local`, `config/jwt/*.pem`).
 - Still deferred: rate limiting on auth endpoints, account lockout, email verification, refresh tokens — none of these are needed for a single-request ingestion flow and would be premature before there's a reason to harden auth further.

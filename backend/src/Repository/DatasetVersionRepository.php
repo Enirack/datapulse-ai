@@ -33,6 +33,18 @@ class DatasetVersionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function findMaxVersionNumber(Dataset $dataset): int
+    {
+        $result = $this->createQueryBuilder('dv')
+            ->select('MAX(dv.versionNumber)')
+            ->andWhere('dv.dataset = :dataset')
+            ->setParameter('dataset', $dataset)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $result !== null ? (int) $result : 0;
+    }
+
     public function findOneByChecksumForOwner(string $checksum, User $owner): ?DatasetVersion
     {
         return $this->createQueryBuilder('dv')

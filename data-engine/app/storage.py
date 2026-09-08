@@ -1,4 +1,5 @@
 import os
+import uuid
 
 
 class StorageError(Exception):
@@ -37,3 +38,34 @@ class DatasetStorageResolver:
             raise StorageError("Stored file not found.")
 
         return real
+
+
+class TempStorageWriter:
+    """
+    Writes a cleaning result into the shared tmp handoff area, using the
+    same `{2-char shard}/{uuid}.{ext}` identifier shape the backend's own
+    storage class uses for permanent files — never re-using or deriving
+    the identifier from anything user-supplied.
+
+    The backend is responsible for moving (committing) this file into
+    permanent storage; this class only ever writes under `root_dir`, never
+    under the (read-mostly, from here) dataset storage root.
+    """
+
+    def __init__(self, root_dir: str) -> None:
+        self.root_dir = root_dir
+
+    def write(self, content: bytes, extension: str) -> str:
+        """Returns the identifier (relative to root_dir) of the written file."""
+        file_uuid = str(uuid.uuid4())
+        shard = file_uuid[:2]
+        shard_dir = os.path.join(self.root_dir, shard)
+        os.makedirs(shard_dir, exist_ok=True)
+
+        identifier = f"{shard}/{file_uuid}.{extension}"
+        path = os.path.join(self.root_dir, identifier)
+
+        with open(path, "wb") as handle:
+            handle.write(content)
+
+        return identifier

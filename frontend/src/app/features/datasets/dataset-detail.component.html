@@ -85,5 +85,131 @@
         }
       </section>
     }
+
+    @if (loadingRecommendations() || recommendations().length > 0) {
+      <section class="cleaning">
+        <h2>Cleaning Recommendations</h2>
+
+        @if (loadingRecommendations()) {
+          <p>Loading recommendations…</p>
+        } @else if (recommendations().length === 0) {
+          <p class="empty">No issues detected — this dataset looks clean.</p>
+        } @else {
+          <ul class="recommendations">
+            @for (recommendation of recommendations(); track $index) {
+              <li>
+                <p class="recommendation-issue">
+                  ⚠
+                  @if (recommendation.issue) {
+                    {{ recommendation.issue }}
+                  } @else if (recommendation.type === 'outliers') {
+                    {{ recommendation.outlierCount }} outliers ({{ recommendation.outlierPercentage }}%, {{ recommendation.method }})
+                  }
+                  @if (recommendation.column) {
+                    <span class="recommendation-column">{{ recommendation.column }}</span>
+                  }
+                </p>
+                <div class="recommendation-actions">
+                  @for (action of recommendation.recommendedActions; track action) {
+                    @if (isActionable(action)) {
+                      <button
+                        type="button"
+                        class="chip"
+                        [class.chip--selected]="isSelected(action, recommendation.column)"
+                        (click)="toggleOperation(action, recommendation.column)"
+                      >
+                        {{ isSelected(action, recommendation.column) ? '✓ ' : '' }}{{ actionLabel(action) }}
+                      </button>
+                    } @else if (action === 'review') {
+                      <span class="chip chip--info">Review manually</span>
+                    }
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (selectedOperations().length > 0) {
+          <div class="selected-operations">
+            <h3>Selected operations</h3>
+            <ul>
+              @for (operation of selectedOperations(); track $index) {
+                <li>
+                  ✓ {{ operationLabel(operation) }}
+                  <button type="button" class="link-button" (click)="removeSelectedOperation($index)">remove</button>
+                </li>
+              }
+            </ul>
+
+            <div class="cleaning-actions">
+              <button type="button" class="secondary" [disabled]="previewing()" (click)="preview()">
+                {{ previewing() ? 'Previewing…' : 'Preview' }}
+              </button>
+              <button type="button" [disabled]="applying()" (click)="applyCleaning()">
+                {{ applying() ? 'Applying…' : 'Apply Cleaning' }}
+              </button>
+            </div>
+
+            @if (previewError(); as message) {
+              <p class="error">{{ message }}</p>
+            }
+
+            @if (previewResult(); as preview) {
+              <div class="preview-result">
+                <p>Estimated affected rows: <strong>{{ preview.estimatedAffectedRows }}</strong></p>
+                <p class="meta">
+                  {{ preview.before.dataset.rows }} rows → {{ preview.after.dataset.rows }} rows,
+                  {{ preview.before.dataset.columns }} → {{ preview.after.dataset.columns }} columns
+                </p>
+              </div>
+            }
+
+            @if (cleaningError(); as message) {
+              <p class="error">{{ message }}</p>
+            }
+
+            @if (cleaningResult(); as result) {
+              <div class="cleaning-result" [class.cleaning-result--failed]="result.status === 'failed'">
+                @if (result.status === 'completed') {
+                  <p class="cleaning-result-title">Cleaning completed</p>
+
+                  @if (!result.changed) {
+                    <p>No changes were needed — the data already matched the selected operations.</p>
+                  } @else if (result.report; as report) {
+                    <dl class="summary">
+                      <div><dt>Original</dt><dd>{{ report.before.dataset.rows }} rows</dd></div>
+                      <div><dt>Cleaned</dt><dd>{{ report.after.dataset.rows }} rows</dd></div>
+                    </dl>
+
+                    <p class="changes-title">Changes:</p>
+                    <ul class="changes-list">
+                      @for (opReport of report.operations; track $index) {
+                        <li>
+                          @if (opReport.operation === 'remove_duplicate_rows') {
+                            {{ opReport.affectedRows }} duplicate rows removed
+                          } @else if (opReport.operation === 'trim_whitespace' || opReport.operation === 'normalize_internal_whitespace') {
+                            {{ opReport.affectedRows }} values trimmed in <strong>{{ opReport.column }}</strong>
+                          } @else {
+                            {{ operationLabel({ type: opReport.operation, column: opReport.column ?? undefined }) }}:
+                            {{ opReport.affectedRows }} row(s) affected
+                            @if (opReport.details) { — {{ opReport.details }} }
+                          }
+                        </li>
+                      }
+                    </ul>
+
+                    <button type="button" (click)="viewCleanedDataset()">View cleaned dataset</button>
+                  }
+                } @else if (result.status === 'failed') {
+                  <p class="cleaning-result-title">Cleaning failed</p>
+                  <p class="error">{{ result.errorMessage }}</p>
+                }
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
   </section>
 }

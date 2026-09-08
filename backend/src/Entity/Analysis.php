@@ -54,6 +54,34 @@ class Analysis
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $errorMessage = null;
 
+    /**
+     * The DatasetVersion this analysis *produced* — only set for a
+     * completed cleaning analysis that actually changed the data. Null
+     * for profiling analyses, and for a cleaning analysis that changed
+     * nothing (see markCompletedUnchanged()) or failed.
+     */
+    #[ORM\ManyToOne(targetEntity: DatasetVersion::class)]
+    #[ORM\JoinColumn(name: 'result_version_id', nullable: true)]
+    private ?DatasetVersion $resultVersion = null;
+
+    /**
+     * The requested pipeline (cleaning analyses only), persisted at
+     * creation time — before execution — so even a failed run keeps an
+     * exact record of what was attempted.
+     *
+     * @var list<array<string, mixed>>|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $operations = null;
+
+    /**
+     * sha256(sourceVersion.checksum + canonical JSON of `operations`) —
+     * used to recognize "this exact pipeline was already run against this
+     * exact source" for idempotency, without comparing JSON blobs directly.
+     */
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $pipelineFingerprint = null;
+
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
@@ -109,6 +137,36 @@ class Analysis
         return $this->errorMessage;
     }
 
+    public function getResultVersion(): ?DatasetVersion
+    {
+        return $this->resultVersion;
+    }
+
+    /**
+     * @return list<array<string, mixed>>|null
+     */
+    public function getOperations(): ?array
+    {
+        return $this->operations;
+    }
+
+    public function getPipelineFingerprint(): ?string
+    {
+        return $this->pipelineFingerprint;
+    }
+
+    /**
+     * Attaches the requested cleaning pipeline before execution starts, so
+     * it's on record even if the run goes on to fail.
+     *
+     * @param list<array<string, mixed>> $operations
+     */
+    public function setPipeline(array $operations, string $fingerprint): void
+    {
+        $this->operations = $operations;
+        $this->pipelineFingerprint = $fingerprint;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -146,5 +204,16 @@ class Analysis
         $this->status = AnalysisStatus::Failed;
         $this->errorMessage = $errorMessage;
         $this->completedAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * Cleaning completed and produced a new DatasetVersion.
+     *
+     * @param array<string, mixed> $result
+     */
+    public function markCompletedWithNewVersion(DatasetVersion $resultVersion, array $result, string $resultSchemaVersion): void
+    {
+        $this->markCompleted($result, $resultSchemaVersion);
+        $this->resultVersion = $resultVersion;
     }
 }

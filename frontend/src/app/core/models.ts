@@ -106,3 +106,60 @@ export interface Analysis {
   startedAt: string | null;
   completedAt: string | null;
 }
+
+export interface CleaningRecommendation {
+  type: string;
+  column?: string;
+  issue?: string;
+  method?: string;
+  outlierCount?: number;
+  outlierPercentage?: number;
+  recommendedActions: string[];
+}
+
+export interface CleaningRecommendationsResponse {
+  datasetVersionId: string;
+  recommendations: CleaningRecommendation[];
+}
+
+export interface CleaningOperation {
+  type: string;
+  column?: string;
+  value?: string | number | boolean;
+}
+
+export interface OperationReport {
+  operation: string;
+  column?: string | null;
+  affectedRows: number;
+  beforeRows?: number | null;
+  afterRows?: number | null;
+  details?: string | null;
+}
+
+export interface CleaningReport {
+  operations: OperationReport[];
+  before: ProfileResult;
+  after: ProfileResult;
+}
+
+export interface CleaningResult {
+  analysisId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  sourceVersionId: string;
+  resultVersionId: string | null;
+  changed: boolean;
+  report: CleaningReport | null;
+  errorMessage: string | null;
+  operations: CleaningOperation[] | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface CleaningPreviewResult {
+  estimatedAffectedRows: number;
+  operations: OperationReport[];
+  before: ProfileResult;
+  after: ProfileResult;
+}

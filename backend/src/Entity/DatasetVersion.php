@@ -67,6 +67,16 @@ class DatasetVersion
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
+    /**
+     * The version this one was derived from (e.g. a cleaning operation's
+     * output points back at the version it cleaned). Null for an
+     * originally-uploaded version. The source version is never modified
+     * or deleted as a side effect of a derived version existing.
+     */
+    #[ORM\ManyToOne(targetEntity: self::class)]
+    #[ORM\JoinColumn(name: 'source_version_id', nullable: true)]
+    private ?self $sourceVersion;
+
     public function __construct(
         Dataset $dataset,
         int $versionNumber,
@@ -77,6 +87,7 @@ class DatasetVersion
         int $fileSize,
         string $checksum,
         bool $hasFormulaInjectionRisk,
+        ?self $sourceVersion = null,
     ) {
         $this->dataset = $dataset;
         $this->versionNumber = $versionNumber;
@@ -88,6 +99,7 @@ class DatasetVersion
         $this->checksum = $checksum;
         $this->hasFormulaInjectionRisk = $hasFormulaInjectionRisk;
         $this->createdAt = new \DateTimeImmutable();
+        $this->sourceVersion = $sourceVersion;
     }
 
     public function getId(): Uuid
@@ -143,5 +155,10 @@ class DatasetVersion
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getSourceVersion(): ?self
+    {
+        return $this->sourceVersion;
     }
 }

@@ -2,7 +2,15 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { ApiService } from './api.service';
-import { Analysis, Dataset, DatasetListResponse } from './models';
+import {
+  Analysis,
+  CleaningOperation,
+  CleaningPreviewResult,
+  CleaningRecommendationsResponse,
+  CleaningResult,
+  Dataset,
+  DatasetListResponse,
+} from './models';
 
 @Injectable({ providedIn: 'root' })
 export class DatasetService {
@@ -36,5 +44,17 @@ export class DatasetService {
 
   getProfile(datasetId: string, versionId: string): Observable<Analysis> {
     return this.api.get<Analysis>(`/datasets/${datasetId}/versions/${versionId}/profile`);
+  }
+
+  getCleaningRecommendations(datasetId: string, versionId: string): Observable<CleaningRecommendationsResponse> {
+    return this.api.get<CleaningRecommendationsResponse>(`/datasets/${datasetId}/versions/${versionId}/cleaning-recommendations`);
+  }
+
+  previewClean(datasetId: string, versionId: string, operations: CleaningOperation[]): Observable<CleaningPreviewResult> {
+    return this.api.post<CleaningPreviewResult>(`/datasets/${datasetId}/versions/${versionId}/clean/preview`, { operations });
+  }
+
+  applyClean(datasetId: string, versionId: string, operations: CleaningOperation[], force = false): Observable<CleaningResult> {
+    return this.api.post<CleaningResult>(`/datasets/${datasetId}/versions/${versionId}/clean${force ? '?force=true' : ''}`, { operations });
   }
 }

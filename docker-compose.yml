@@ -22,6 +22,7 @@ services:
     environment:
       DATA_ENGINE_ENVIRONMENT: dev
       DATA_ENGINE_STORAGE_DIR: /app/storage/datasets
+      DATA_ENGINE_TMP_DIR: /app/storage/tmp
       DATA_ENGINE_MAX_PROFILABLE_BYTES: ${MAX_PROFILABLE_BYTES:-26214400}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
@@ -32,9 +33,12 @@ services:
     ports:
       - "${DATA_ENGINE_PORT:-8021}:8001"
     volumes:
-      # Read-only: the backend is the only service that ever writes
-      # dataset files; the data engine only reads them to profile.
-      - backend_storage:/app/storage:ro
+      # Read-write, but scoped by convention, not by mount permission: the
+      # data engine only ever reads under storage/datasets/ (the backend's
+      # permanent files) and only ever writes under storage/tmp/ (cleaning
+      # results, committed into permanent storage by the backend). See
+      # docs/data-cleaning.md "Storage sharing".
+      - backend_storage:/app/storage
     networks:
       - datapulse
 
