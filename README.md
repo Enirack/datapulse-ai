@@ -70,8 +70,8 @@ Full setup (including running each service natively without Docker), environment
 This project is built incrementally, one phase at a time, never skipping ahead:
 
 1. Foundation — monorepo scaffolding, health checks, Docker Compose, domain schema
-2. **Data ingestion** — JWT auth, secure file upload, validation, untrusted-input protections *(current)*
-3. Data profiling
+2. Data ingestion — JWT auth, secure file upload, validation, untrusted-input protections
+3. **Data profiling** — deterministic type detection, statistics, data quality, in the Python engine *(current)*
 4. Data cleaning and analysis
 5. Visualization and insights
 6. AI analyst
@@ -98,4 +98,4 @@ All three run automatically in CI on every push/PR ([`.github/workflows/ci.yml`]
 
 ## Status
 
-**Data ingestion phase complete.** Users can register, log in (JWT), and upload CSV/XLSX/JSON files. Every upload is validated (extension + MIME + structural parse), checksummed, scanned for CSV formula injection, and stored on a filesystem abstraction outside the web root — never executed, never trusted by filename alone. Datasets are private to their owner (403/404 enforced on every read/write) and listable with pagination. No profiling, statistics, anomaly detection, visualization, or AI yet — that starts in Phase 3.
+**Data profiling phase complete.** An uploaded dataset can be profiled on demand: the Symfony backend orchestrates, the Python data engine reads the file from a storage volume it shares with the backend (no file bytes over HTTP) and computes row/column counts, per-column business types (integer/float/boolean/string/date/datetime/categorical/unknown), null/unique/duplicate stats, numeric statistics, categorical top-values, and IQR outliers — all against a versioned JSON contract, never leaking NaN/Infinity, never exceeding documented size limits. Results persist on the `Analysis` entity; requests are idempotent by default. A minimal Angular UI (login, dataset list/upload, "Analyser" + results table) proves the frontend consumes it correctly. Full contract: [`docs/data-profiling.md`](docs/data-profiling.md). No cleaning, anomaly detection, visualization, or AI yet — that starts in Phase 4.

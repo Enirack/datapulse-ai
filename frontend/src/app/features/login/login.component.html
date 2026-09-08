@@ -1,0 +1,27 @@
+<section class="login">
+  <h1>{{ mode() === 'login' ? 'Log in' : 'Create an account' }}</h1>
+
+  <form (ngSubmit)="submit()">
+    <label>
+      Email
+      <input type="email" name="email" [(ngModel)]="email" required autocomplete="username" />
+    </label>
+
+    <label>
+      Password
+      <input type="password" name="password" [(ngModel)]="password" required minlength="8" autocomplete="current-password" />
+    </label>
+
+    @if (errorMessage(); as message) {
+      <p class="error">{{ message }}</p>
+    }
+
+    <button type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Please wait…' : mode() === 'login' ? 'Log in' : 'Register' }}
+    </button>
+  </form>
+
+  <button type="button" class="link-button" (click)="toggleMode()">
+    {{ mode() === 'login' ? "Don't have an account? Register" : 'Already have an account? Log in' }}
+  </button>
+</section>

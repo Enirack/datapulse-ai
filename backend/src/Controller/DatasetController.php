@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Presentation\DatasetPresenter;
 use App\Repository\DatasetRepository;
 use App\Repository\DatasetVersionRepository;
+use App\Security\DatasetAccessGuard;
 use App\Service\DatasetIngestionService;
 use App\Storage\DatasetStorageInterface;
 use App\Upload\UploadRejectedException;
@@ -16,11 +17,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
-use Symfony\Component\Uid\Uuid;
 
 final class DatasetController
 {
@@ -33,6 +31,7 @@ final class DatasetController
         private readonly DatasetVersionRepository $versionRepository,
         private readonly DatasetStorageInterface $storage,
         private readonly EntityManagerInterface $em,
+        private readonly DatasetAccessGuard $accessGuard,
     ) {
     }
 
@@ -90,7 +89,7 @@ final class DatasetController
     #[Route('/api/datasets/{id}', name: 'api_datasets_show', methods: ['GET'])]
     public function show(string $id, #[CurrentUser] User $user): JsonResponse
     {
-        $dataset = $this->findOwnedDataset($id, $user);
+        $dataset = $this->accessGuard->getOwnedDataset($id, $user);
         $versions = $this->versionRepository->findByDataset($dataset);
 
         return new JsonResponse(DatasetPresenter::present($dataset, $versions));
@@ -99,7 +98,7 @@ final class DatasetController
     #[Route('/api/datasets/{id}', name: 'api_datasets_delete', methods: ['DELETE'])]
     public function delete(string $id, #[CurrentUser] User $user): Response
     {
-        $dataset = $this->findOwnedDataset($id, $user);
+        $dataset = $this->accessGuard->getOwnedDataset($id, $user);
         $versions = $this->versionRepository->findByDataset($dataset);
 
         foreach ($versions as $version) {
@@ -111,23 +110,5 @@ final class DatasetController
         $this->em->flush();
 
         return new Response(null, 204);
-    }
-
-    private function findOwnedDataset(string $id, User $user): Dataset
-    {
-        if (!Uuid::isValid($id)) {
-            throw new NotFoundHttpException('Dataset not found.');
-        }
-
-        $dataset = $this->datasetRepository->find(Uuid::fromString($id));
-        if ($dataset === null) {
-            throw new NotFoundHttpException('Dataset not found.');
-        }
-
-        if (!$dataset->getOwner()->getId()->equals($user->getId())) {
-            throw new AccessDeniedHttpException('You do not have access to this dataset.');
-        }
-
-        return $dataset;
     }
 }

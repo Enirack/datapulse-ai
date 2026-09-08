@@ -4,23 +4,40 @@ declare(strict_types=1);
 
 namespace App\Tests\Support;
 
+use App\Profiling\DataEngineClientInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 abstract class ApiTestCase extends WebTestCase
 {
     /**
-     * Boots the kernel (as usual) and truncates all application tables
-     * immediately after, so every test starts from a clean database
-     * without needing per-test transactions.
+     * Boots the kernel (as usual), truncates all application tables so
+     * every test starts from a clean database without needing per-test
+     * transactions, and resets the fake data-engine client.
      */
     protected static function createClient(array $options = [], array $server = []): KernelBrowser
     {
         $client = parent::createClient($options, $server);
 
+        // Without this, the KernelBrowser rebuilds the container (and every
+        // service in it) before each ->request() call — fine normally, but
+        // it silently resets our stateful FakeDataEngineClient between
+        // requests within the same test.
+        $client->disableReboot();
+
         static::getContainer()->get('doctrine')->getConnection()->executeStatement(
             'TRUNCATE TABLE dataset_versions, datasets, analyses, insights, reports, users RESTART IDENTITY CASCADE',
         );
+
+        static::fakeDataEngine()->reset();
+
+        return $client;
+    }
+
+    protected static function fakeDataEngine(): FakeDataEngineClient
+    {
+        /** @var FakeDataEngineClient $client */
+        $client = static::getContainer()->get(DataEngineClientInterface::class);
 
         return $client;
     }

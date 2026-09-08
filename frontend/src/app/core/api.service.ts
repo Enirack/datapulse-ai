@@ -17,6 +17,14 @@ export class ApiService {
     return this.http.post<T>(this.buildUrl(path), body);
   }
 
+  postForm<T>(path: string, formData: FormData, params?: Record<string, string | number>): Observable<T> {
+    return this.http.post<T>(this.buildUrl(path), formData, { params: this.buildParams(params) });
+  }
+
+  delete<T>(path: string): Observable<T> {
+    return this.http.delete<T>(this.buildUrl(path));
+  }
+
   private buildUrl(path: string): string {
     return `${this.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
   }

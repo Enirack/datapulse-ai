@@ -6,9 +6,9 @@ DataPulse AI turns uploaded tabular datasets into deterministic business intelli
 
 ```
 Dataset
-  -> ingestion              <- Phase 2 (current)
-  -> validation              <- Phase 2 (current)
-  -> profiling
+  -> ingestion
+  -> validation
+  -> profiling              <- Phase 3 (current)
   -> cleaning
   -> statistical analysis
   -> anomaly detection
@@ -25,14 +25,14 @@ Dataset
 |---------------|-------------------------------------------------|----------------|
 | `frontend`    | Angular 22, TypeScript                          | User interface: dashboard, dataset upload, visualizations, chat with the AI analyst. Talks only to `backend`. |
 | `backend`     | Symfony 8, PHP 8.4, Doctrine ORM, PostgreSQL     | REST API, authentication (JWT), persistence, request validation, file ingestion/storage, orchestration of the data engine, and (later) the AI layer. |
-| `data-engine` | Python, FastAPI, Pandas, NumPy, SciPy            | The deterministic analytical core: parsing, profiling, cleaning, statistics, anomaly detection. Produces structured, computed results — never prose. Not yet called by the backend — nothing to process until profiling (phase 3). |
+| `data-engine` | Python, FastAPI, Pandas, NumPy, SciPy            | The deterministic analytical core: parsing, profiling, cleaning, statistics, anomaly detection. Produces structured, computed results — never prose. Now called by the backend for profiling (phase 3); cleaning/anomaly detection are still future phases. |
 
 The frontend never talks to the data engine directly, and the data engine never talks to the frontend. The backend is the single entry point and the only service with a database connection and a storage volume; it is also the only service that will hold API credentials for the AI provider once the AI layer is built, so those never reach the browser or the data engine.
 
 ## Communication between services
 
 - **frontend → backend**: HTTPS/JSON over `/api/*`. In production this is proxied by nginx (see `infrastructure/nginx/frontend.conf`); in development it's called directly at `http://localhost:8020`.
-- **backend → data-engine**: HTTP/JSON over the internal Docker network (`http://data-engine:8001`), not exposed to the browser. Not yet implemented — will be introduced in the profiling phase, since there is no processing to delegate yet.
+- **backend → data-engine**: HTTP/JSON over the internal Docker network (`http://data-engine:8001`), not exposed to the browser. Used for profiling (phase 3) — see [`data-profiling.md`](./data-profiling.md) for the full contract; the two services also share a read-only-for-the-data-engine storage volume so dataset files never cross the wire.
 - **backend → PostgreSQL**: Doctrine DBAL over the internal network.
 
 ## Authentication (phase 2)
@@ -94,6 +94,15 @@ Per OWASP guidance, a cell whose value starts with `=`, `+`, `-`, or `@` can be 
 
 **The original file is never modified because of this.** Detection is purely informational, recorded on the version, surfaced in the API response (`hasFormulaInjectionRisk`) — what the UI/consumer does with that signal (e.g. warn before anyone opens the file in Excel) is a later concern.
 
+## Data profiling (phase 3)
+
+```
+POST /api/datasets/{datasetId}/versions/{versionId}/profile   trigger (idempotent by default; ?force=true bypasses reuse)
+GET  /api/datasets/{datasetId}/versions/{versionId}/profile   fetch the latest analysis without triggering one
+```
+
+Same ownership rule as dataset endpoints, plus a version-scoped check: `404` if the version id doesn't belong to the given dataset. Persisted on the `Analysis` entity (extended this phase with `result`, `resultSchemaVersion`, `errorMessage`, `startedAt`). Full contract, security model, size limits, and type-detection rules: [`data-profiling.md`](./data-profiling.md).
+
 ## Error handling
 
 All exceptions raised under `/api/*` are caught by `App\EventListener\ApiExceptionListener` and converted to a consistent JSON shape:
@@ -129,6 +138,7 @@ Monolog is configured per environment (`config/packages/monolog.yaml`):
 - Dataset ownership is enforced on every read/write; cross-user access is a `403`, a nonexistent id is a `404`.
 - Uploaded files are treated as fully untrusted: extension whitelist, MIME cross-check, structural validation, size limits, decompression-bomb protection for XLSX, CSV formula-injection detection, path-traversal-proof storage identifiers, symlink-attack-proof storage resolution. See "Upload validation pipeline" above for the full list mapped to spec requirements.
 - Nothing from an uploaded file is ever executed — not as a shell command, not as a macro, not as a dependency install.
+- The data engine never trusts a storage identifier blindly either, even though it only ever receives one from the trusted backend — same path-containment and symlink checks as the PHP storage class, independently implemented in Python. It has no database access and is never reachable from the browser.
 - CORS is restricted to `localhost`/`127.0.0.1` origins by default (`CORS_ALLOW_ORIGIN`).
 - No secrets are committed. `.env` in `backend/` ships with the Symfony skeleton's public dev defaults plus non-secret app defaults (`MAX_UPLOAD_SIZE`, `DATASET_STORAGE_DIR`); JWT keys and real per-environment secrets are git-ignored (`.env.local`, `config/jwt/*.pem`).
 - Still deferred: rate limiting on auth endpoints, account lockout, email verification, refresh tokens — none of these are needed for a single-request ingestion flow and would be premature before there's a reason to harden auth further.

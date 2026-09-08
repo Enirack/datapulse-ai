@@ -31,8 +31,34 @@ class Analysis
     #[ORM\Column(length: 20, enumType: AnalysisStatus::class)]
     private AnalysisStatus $status;
 
+    /**
+     * Version of the JSON shape held in `result`, e.g. "1.0" for the
+     * profiling contract documented in docs/data-profiling.md. Only set
+     * once the analysis has a result.
+     */
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $resultSchemaVersion = null;
+
+    /**
+     * The structured analysis result (e.g. a profiling report). Stored as
+     * JSONB — queryable if ever needed, and a natural fit for a result
+     * whose shape is already a versioned JSON contract.
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $result = null;
+
+    /**
+     * Sanitized, human-readable failure reason. Never the raw exception
+     * message or a stack trace — see DatasetProfilingService.
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $errorMessage = null;
+
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $startedAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $completedAt = null;
@@ -65,9 +91,22 @@ class Analysis
         return $this->status;
     }
 
-    public function setStatus(AnalysisStatus $status): void
+    public function getResultSchemaVersion(): ?string
     {
-        $this->status = $status;
+        return $this->resultSchemaVersion;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getResult(): ?array
+    {
+        return $this->result;
+    }
+
+    public function getErrorMessage(): ?string
+    {
+        return $this->errorMessage;
     }
 
     public function getCreatedAt(): \DateTimeImmutable
@@ -75,14 +114,37 @@ class Analysis
         return $this->createdAt;
     }
 
+    public function getStartedAt(): ?\DateTimeImmutable
+    {
+        return $this->startedAt;
+    }
+
     public function getCompletedAt(): ?\DateTimeImmutable
     {
         return $this->completedAt;
     }
 
-    public function markCompleted(): void
+    public function markRunning(): void
+    {
+        $this->status = AnalysisStatus::Running;
+        $this->startedAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    public function markCompleted(array $result, string $resultSchemaVersion): void
     {
         $this->status = AnalysisStatus::Completed;
+        $this->result = $result;
+        $this->resultSchemaVersion = $resultSchemaVersion;
+        $this->completedAt = new \DateTimeImmutable();
+    }
+
+    public function markFailed(string $errorMessage): void
+    {
+        $this->status = AnalysisStatus::Failed;
+        $this->errorMessage = $errorMessage;
         $this->completedAt = new \DateTimeImmutable();
     }
 }

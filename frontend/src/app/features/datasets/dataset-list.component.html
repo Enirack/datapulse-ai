@@ -1,0 +1,35 @@
+<section class="dataset-list">
+  <header class="dataset-list__header">
+    <h1>Datasets</h1>
+    <button type="button" class="link-button" (click)="logout()">Log out</button>
+  </header>
+
+  <div class="upload">
+    <input type="file" accept=".csv,.xlsx,.json" (change)="onFileSelected($event)" />
+    <button type="button" [disabled]="!selectedFile || uploading()" (click)="upload()">
+      {{ uploading() ? 'Uploading…' : 'Upload' }}
+    </button>
+  </div>
+
+  @if (errorMessage(); as message) {
+    <p class="error">{{ message }}</p>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (datasets().length === 0) {
+    <p class="empty">No datasets yet. Upload a CSV, XLSX, or JSON file to get started.</p>
+  } @else {
+    <ul class="dataset-list__items">
+      @for (dataset of datasets(); track dataset.id) {
+        <li>
+          <a [routerLink]="['/datasets', dataset.id]">
+            <strong>{{ dataset.name }}</strong>
+            <span class="status" [class]="'status--' + dataset.status">{{ dataset.status }}</span>
+            <span class="meta">{{ dataset.versions[0]?.originalFilename }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</section>

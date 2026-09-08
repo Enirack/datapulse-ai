@@ -1,0 +1,89 @@
+<a routerLink="/datasets" class="back-link">← Back to datasets</a>
+
+@if (loading()) {
+  <p>Loading…</p>
+} @else if (loadError(); as message) {
+  <p class="error">{{ message }}</p>
+} @else if (dataset(); as dataset) {
+  <section class="dataset-detail">
+    <h1>{{ dataset.name }}</h1>
+    @if (dataset.description) {
+      <p class="description">{{ dataset.description }}</p>
+    }
+
+    <dl class="summary">
+      <div><dt>Status</dt><dd>{{ dataset.status }}</dd></div>
+      @if (dataset.versions[0]; as version) {
+        <div><dt>File</dt><dd>{{ version.originalFilename }}</dd></div>
+        <div><dt>Size</dt><dd>{{ version.fileSize }} bytes</dd></div>
+        <div><dt>Checksum</dt><dd class="mono">{{ version.checksum.slice(0, 16) }}…</dd></div>
+        @if (version.hasFormulaInjectionRisk) {
+          <div class="warning"><dt>⚠</dt><dd>Possible spreadsheet formula content detected</dd></div>
+        }
+      }
+    </dl>
+
+    <div class="analyze-bar">
+      <button type="button" [disabled]="analyzing()" (click)="analyze()">
+        {{ analyzing() ? 'Analyzing…' : analysis() ? 'Re-analyze' : 'Analyser' }}
+      </button>
+      @if (analysis()) {
+        <button type="button" class="secondary" [disabled]="analyzing()" (click)="analyze(true)">Force fresh analysis</button>
+      }
+    </div>
+
+    @if (analysisError(); as message) {
+      <p class="error">{{ message }}</p>
+    }
+
+    @if (analysis(); as analysis) {
+      <section class="analysis">
+        <p class="analysis-status" [class]="'analysis-status--' + analysis.status">
+          Analysis: {{ analysis.status }}
+        </p>
+
+        @if (analysis.status === 'failed' && analysis.errorMessage) {
+          <p class="error">{{ analysis.errorMessage }}</p>
+        }
+
+        @if (analysis.result; as result) {
+          <dl class="summary">
+            <div><dt>Rows</dt><dd>{{ result.dataset.rows }}</dd></div>
+            <div><dt>Columns</dt><dd>{{ result.dataset.columns }}</dd></div>
+            <div><dt>Null cells</dt><dd>{{ result.dataset.totalNullCells }} ({{ result.dataset.nullPercentage }}%)</dd></div>
+            <div><dt>Duplicate rows</dt><dd>{{ result.dataset.duplicateRowCount }} ({{ result.dataset.duplicateRowPercentage }}%)</dd></div>
+          </dl>
+
+          <div class="columns-table-wrapper">
+            <table class="columns-table">
+              <thead>
+                <tr>
+                  <th>Column</th>
+                  <th>Type</th>
+                  <th>Nulls</th>
+                  <th>Unique</th>
+                  <th>Mean</th>
+                  <th>Min</th>
+                  <th>Max</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (column of result.columns; track column.name) {
+                  <tr>
+                    <td>{{ column.name }}</td>
+                    <td>{{ column.detectedType }}</td>
+                    <td>{{ column.nullCount }} ({{ column.nullPercentage }}%)</td>
+                    <td>{{ column.uniqueCount }} ({{ column.uniquePercentage }}%)</td>
+                    <td>{{ column.statistics?.mean ?? '—' }}</td>
+                    <td>{{ column.statistics?.min ?? '—' }}</td>
+                    <td>{{ column.statistics?.max ?? '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+  </section>
+}

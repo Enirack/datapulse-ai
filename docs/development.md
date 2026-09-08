@@ -52,7 +52,13 @@ curl -X POST http://localhost:8020/api/datasets -H "Authorization: Bearer $TOKEN
 curl http://localhost:8020/api/datasets -H "Authorization: Bearer $TOKEN"
 curl http://localhost:8020/api/datasets/<id> -H "Authorization: Bearer $TOKEN"
 curl -X DELETE http://localhost:8020/api/datasets/<id> -H "Authorization: Bearer $TOKEN"
+
+# Profile a dataset version (id from the upload response's versions[0].id)
+curl -X POST "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/profile" -H "Authorization: Bearer $TOKEN"
+curl "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/profile" -H "Authorization: Bearer $TOKEN"
 ```
+
+Full profiling contract, security model, and limits: [`data-profiling.md`](./data-profiling.md).
 
 ## Environment variables
 
@@ -69,8 +75,9 @@ Defined in `.env.example` at the repo root (copy to `.env`, which is git-ignored
 | `DATA_ENGINE_URL` | Internal URL the backend will use to call the data engine | `http://data-engine:8001` |
 | `FRONTEND_PORT` | Host port for the Angular app (served via nginx) | `4210` |
 | `MAX_UPLOAD_SIZE` | Max accepted dataset upload size, in bytes | `52428800` (50 MiB) |
+| `MAX_PROFILABLE_BYTES` | Max file size the data engine will load into memory to profile | `26214400` (25 MiB) |
 
-`DATASET_STORAGE_DIR` (where uploaded files live) is not exposed as a root-level/compose variable on purpose — it's an internal container path (`backend/var/storage/datasets`, backed by the `backend_storage` volume), never something a host-level `.env` should redirect.
+`DATASET_STORAGE_DIR` (where uploaded files live) and the data engine's own `DATA_ENGINE_STORAGE_DIR`/`DATA_ENGINE_MAX_ROWS`/`DATA_ENGINE_MAX_COLUMNS` are not exposed as root-level/compose variables on purpose — they're internal container paths and tuning knobs (see `docker-compose.yml` and `docs/data-profiling.md`), never something a host-level `.env` should redirect.
 
 No credential has a hardcoded fallback baked into source that isn't also overridable here — `docker-compose.yml` reads every credential through `${VAR:-default}`.
 
@@ -94,6 +101,8 @@ php bin/console doctrine:database:create --env=test --if-not-exists
 php bin/console doctrine:migrations:migrate --env=test --no-interaction
 php bin/phpunit
 ```
+
+Profiling tests are the one exception to "hit the real thing": `App\Profiling\DataEngineClientInterface` is bound to `App\Tests\Support\FakeDataEngineClient` `when@test` (see `config/services.yaml`), because a natively-run PHPUnit process has no access to the Docker-shared storage volume a real data-engine call would need to read from. Profiling *correctness* is covered by the data engine's own test suite and by manual Docker verification, not by backend unit tests.
 
 **Data engine:**
 ```bash
@@ -135,7 +144,7 @@ datapulse-ai/
 ├── backend/          Symfony 8 API
 ├── data-engine/      FastAPI data processing service
 ├── infrastructure/   Cross-cutting deployment config (nginx, etc.)
-├── docs/             Architecture and development docs (this file)
+├── docs/             Architecture, development, and data-profiling docs
 ├── .github/          CI workflows
 ├── docker-compose.yml
 └── README.md
@@ -145,9 +154,11 @@ datapulse-ai/
 
 - **Migrations are not auto-run on container start.** Running migrations automatically on boot is a production-deployment concern (rollback strategy, zero-downtime considerations) that belongs to the "Production readiness" phase, not Foundation. For now, run them manually (see above).
 - **`doctrine/orm` is pinned to `^3.6,!=3.6.8`.** Version `3.6.8` (current at the time of writing) ships a `GenerateSchemaEventArgs::setSchema()` that unconditionally requires DBAL's not-yet-stable `Schema::edit()` API (DBAL `^4.5`, which only has a `dev` release), which breaks every schema-generating command (`doctrine:migrations:diff`, `doctrine:schema:update`) even though it's guarded with `method_exists()`. This is an upstream version-skew bug, not a project defect. Revisit this pin once a fixed `doctrine/orm` patch or a stable DBAL `4.5` ships.
-- **No PHPStan/ESLint yet.** Deferred again this phase — would be worth adding once phase 3 (profiling) adds another substantial slice of business logic.
+- **No PHPStan/ESLint/mypy yet.** Deferred again this phase — three phases of real business logic now exist without it; worth reconsidering before phase 4 adds more.
 - **A `Dataset` can only get its first `DatasetVersion` via `POST /api/datasets`.** There's no "upload a new version of an existing dataset" endpoint yet — `DatasetVersion.versionNumber` exists for this, but nothing beyond `1` is ever created in this phase. Natural fit for a future `POST /api/datasets/{id}/versions`.
 - **Duplicate-checksum detection is informational only.** A re-upload of identical content creates a brand new `Dataset` + `DatasetVersion` and merely reports `possibleDuplicateOfDatasetId` in the response — it does not block or dedupe storage. Deliberate: rejecting a legitimate re-upload would be more surprising than helpful at this phase.
-- **CSV header/delimiter/encoding detection is best-effort and not persisted.** `CsvValidator` auto-detects the delimiter (needed to scan cells correctly) but doesn't store what it detected — there's no schema field for it yet, and full profiling (including a real header decision) belongs to phase 3.
 - **No per-route rate limiting on `/api/auth/*`.** Brute-force/credential-stuffing protection is out of scope until there's a reason to harden further; noted here rather than silently skipped.
 - **Dataset listing does one query per item for its versions** (`DatasetController::list()`). Fine at the volumes this phase deals with; would want a join or a batched fetch before that stops being true.
+- **Profiling has no cross-request locking.** Two concurrent first-time profile requests for the same version can both start a run (no job queue in this phase) — see `docs/data-profiling.md#idempotency`.
+- **Native (non-Docker) backend dev can't actually run profiling end-to-end.** `DATA_ENGINE_URL` defaults to the Docker-exposed port for local dev, but the data engine's file access depends on the shared `backend_storage` Docker volume — a natively-run backend writes dataset files to the host filesystem instead, which the containerized data engine can't see. Full Docker Compose is the only path that supports profiling end-to-end; documented, not solved, since mixing native-backend-with-dockerized-data-engine isn't a setup worth specifically supporting.
+- **CSV/XLSX/JSON profiling assumes a header row and profiles only the first XLSX sheet.** Both are explicit, documented simplifications (`docs/data-profiling.md`) rather than attempts at full generality.

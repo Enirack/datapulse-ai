@@ -21,6 +21,8 @@ services:
     build: ./data-engine
     environment:
       DATA_ENGINE_ENVIRONMENT: dev
+      DATA_ENGINE_STORAGE_DIR: /app/storage/datasets
+      DATA_ENGINE_MAX_PROFILABLE_BYTES: ${MAX_PROFILABLE_BYTES:-26214400}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
       interval: 10s
@@ -29,6 +31,10 @@ services:
       start_period: 10s
     ports:
       - "${DATA_ENGINE_PORT:-8021}:8001"
+    volumes:
+      # Read-only: the backend is the only service that ever writes
+      # dataset files; the data engine only reads them to profile.
+      - backend_storage:/app/storage:ro
     networks:
       - datapulse
 
