@@ -26,10 +26,13 @@ def run_pipeline(df: pd.DataFrame, raw_operations: list[dict]) -> tuple[pd.DataF
 
     for raw in raw_operations:
         op_type = raw.get("type")
+        if not isinstance(op_type, str):
+            raise UnknownOperationError(str(op_type))
         column = raw.get("column")
+        col_name = str(column) if column is not None else None
         value = raw.get("value")
 
-        current, report = _apply_one(current, op_type, column, value)
+        current, report = _apply_one(current, op_type, col_name, value)
         reports.append(report)
 
     return current, reports
@@ -43,6 +46,8 @@ def _apply_one(df: pd.DataFrame, op_type: str, column: str | None, value: object
 
     if op_type == "remove_duplicate_rows":
         return ops.remove_duplicate_rows(df)
+
+    assert column is not None
     if op_type == "trim_whitespace":
         return ops.trim_whitespace(df, column)
     if op_type == "normalize_internal_whitespace":

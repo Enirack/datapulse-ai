@@ -17,7 +17,7 @@ import io
 
 import pandas as pd
 
-from app.cleaning.contract import CleanResult, CleaningReport, PreviewResult
+from app.cleaning.contract import CleaningReport, CleanResult, PreviewResult
 from app.cleaning.pipeline import run_pipeline
 from app.config import Settings
 from app.profiling.dataset_profiler import profile_dataframe

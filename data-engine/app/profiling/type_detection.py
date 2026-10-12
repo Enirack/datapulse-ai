@@ -43,9 +43,12 @@ _DATETIME_PATTERNS = [
 ]
 
 
+from app.profiling.contract import BusinessType
+
+
 @dataclass
 class TypeDetectionResult:
-    detected_type: str
+    detected_type: BusinessType
     parsed_dates: "pd.Series | None" = None  # populated only for date/datetime columns
 
 
