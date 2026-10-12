@@ -1,0 +1,22 @@
+<div class="matrix-scroll">
+  <table class="correlation-matrix">
+    <thead>
+      <tr>
+        <th></th>
+        @for (col of matrix().columns; track col) {
+          <th>{{ col }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of matrix().matrix; track $index; let rowIndex = $index) {
+        <tr>
+          <th>{{ matrix().columns[rowIndex] }}</th>
+          @for (value of row; track $index) {
+            <td [style]="cellStyle(value)">{{ label(value) }}</td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

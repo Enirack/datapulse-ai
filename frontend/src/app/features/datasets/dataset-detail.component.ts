@@ -1,16 +1,26 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ChartConfiguration } from 'chart.js';
 
 import { ApiError } from '../../core/api-error';
 import { DatasetService } from '../../core/dataset.service';
 import {
   Analysis,
+  AnalyticsResult,
+  BarChart,
   CleaningOperation,
   CleaningPreviewResult,
   CleaningRecommendation,
   CleaningResult,
   Dataset,
+  HistogramChart,
+  ScatterChart,
+  TimeSeriesChart,
 } from '../../core/models';
+import { BoxplotChartComponent } from '../../shared/boxplot-chart.component';
+import { ChartCanvasComponent } from '../../shared/chart-canvas.component';
+import { CorrelationMatrixComponent } from '../../shared/correlation-matrix.component';
+import { buildBarConfig, buildHistogramConfig, buildScatterConfig, buildTimeSeriesConfig } from './analytics-chart-builder';
 
 const NON_ACTIONABLE_ACTIONS = new Set(['review']);
 const ACTIONS_REQUIRING_EXTRA_INPUT = new Set(['fill_constant']);
@@ -38,7 +48,7 @@ const OPERATION_LABELS: Record<string, string> = ACTION_LABELS;
 @Component({
   selector: 'app-dataset-detail',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ChartCanvasComponent, BoxplotChartComponent, CorrelationMatrixComponent],
   templateUrl: './dataset-detail.component.html',
   styleUrl: './dataset-detail.component.scss',
 })
@@ -67,6 +77,10 @@ export class DatasetDetailComponent implements OnInit {
   protected cleaningResult = signal<CleaningResult | null>(null);
   protected cleaningError = signal<string | null>(null);
 
+  protected analyticsAnalysis = signal<Analysis<AnalyticsResult> | null>(null);
+  protected runningAnalytics = signal(false);
+  protected analyticsError = signal<string | null>(null);
+
   ngOnInit(): void {
     const datasetId = this.route.snapshot.paramMap.get('id');
     if (!datasetId) {
@@ -78,6 +92,7 @@ export class DatasetDetailComponent implements OnInit {
         this.dataset.set(dataset);
         this.loading.set(false);
         this.loadExistingProfile(dataset);
+        this.loadExistingAnalytics(dataset);
       },
       error: (error: ApiError) => {
         this.loading.set(false);
@@ -204,16 +219,74 @@ export class DatasetDetailComponent implements OnInit {
     this.previewResult.set(null);
     this.analysis.set(null);
     this.recommendations.set([]);
+    this.analyticsAnalysis.set(null);
+    this.analyticsError.set(null);
 
     this.datasetService.get(dataset.id).subscribe({
       next: (refreshed) => {
         this.dataset.set(refreshed);
         this.loading.set(false);
         this.loadExistingProfile(refreshed);
+        this.loadExistingAnalytics(refreshed);
       },
       error: (error: ApiError) => {
         this.loading.set(false);
         this.loadError.set(error.message || 'Unable to load this dataset.');
+      },
+    });
+  }
+
+  runAnalytics(force = false): void {
+    const dataset = this.dataset();
+    const version = dataset?.versions[0];
+    if (!dataset || !version || this.runningAnalytics()) {
+      return;
+    }
+
+    this.runningAnalytics.set(true);
+    this.analyticsError.set(null);
+
+    this.datasetService.triggerAnalytics(dataset.id, version.id, force).subscribe({
+      next: (analysis) => {
+        this.runningAnalytics.set(false);
+        this.analyticsAnalysis.set(analysis);
+        if (analysis.status === 'failed') {
+          this.analyticsError.set(analysis.errorMessage || 'Analytics failed.');
+        }
+      },
+      error: (error: ApiError) => {
+        this.runningAnalytics.set(false);
+        this.analyticsError.set(error.message || 'Analytics failed to start.');
+      },
+    });
+  }
+
+  histogramConfig(chart: HistogramChart): ChartConfiguration {
+    return buildHistogramConfig(chart);
+  }
+
+  barConfig(chart: BarChart): ChartConfiguration {
+    return buildBarConfig(chart);
+  }
+
+  timeSeriesConfig(chart: TimeSeriesChart): ChartConfiguration {
+    return buildTimeSeriesConfig(chart);
+  }
+
+  scatterConfig(chart: ScatterChart): ChartConfiguration {
+    return buildScatterConfig(chart);
+  }
+
+  private loadExistingAnalytics(dataset: Dataset): void {
+    const version = dataset.versions[0];
+    if (!version) {
+      return;
+    }
+
+    this.datasetService.getAnalytics(dataset.id, version.id).subscribe({
+      next: (analysis) => this.analyticsAnalysis.set(analysis),
+      error: () => {
+        // No analytics run yet — not an error state worth surfacing here.
       },
     });
   }

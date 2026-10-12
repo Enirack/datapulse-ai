@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
 import {
   Analysis,
+  AnalyticsResult,
   CleaningOperation,
   CleaningPreviewResult,
   CleaningRecommendationsResponse,
@@ -56,5 +57,13 @@ export class DatasetService {
 
   applyClean(datasetId: string, versionId: string, operations: CleaningOperation[], force = false): Observable<CleaningResult> {
     return this.api.post<CleaningResult>(`/datasets/${datasetId}/versions/${versionId}/clean${force ? '?force=true' : ''}`, { operations });
+  }
+
+  triggerAnalytics(datasetId: string, versionId: string, force = false): Observable<Analysis<AnalyticsResult>> {
+    return this.api.post<Analysis<AnalyticsResult>>(`/datasets/${datasetId}/versions/${versionId}/analytics${force ? '?force=true' : ''}`, {});
+  }
+
+  getAnalytics(datasetId: string, versionId: string): Observable<Analysis<AnalyticsResult>> {
+    return this.api.get<Analysis<AnalyticsResult>>(`/datasets/${datasetId}/versions/${versionId}/analytics`);
   }
 }

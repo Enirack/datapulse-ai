@@ -44,7 +44,8 @@
   color: #b26a00;
 }
 
-.analyze-bar {
+.analyze-bar,
+.analytics-actions {
   display: flex;
   gap: 0.75rem;
   margin: 1.5rem 0;
@@ -306,4 +307,80 @@
     margin-bottom: 0.25rem;
     font-size: 0.9rem;
   }
+}
+
+.analytics {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+
+  h2 {
+    font-size: 1.15rem;
+    margin: 0 0 1rem;
+  }
+
+  h3 {
+    font-size: 0.95rem;
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  h4 {
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+  }
+}
+
+.summary--compact {
+  gap: 0.5rem 1.25rem;
+  margin: 0.5rem 0;
+
+  dt {
+    font-size: 0.7rem;
+  }
+
+  dd {
+    font-size: 0.85rem;
+  }
+}
+
+.analytics-section {
+  margin-top: 1.5rem;
+}
+
+.analytics-card {
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 1rem;
+}
+
+.chart-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+}
+
+.chart-box {
+  min-width: 220px;
+
+  &--wide {
+    width: 100%;
+  }
+}
+
+.chart-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #888;
+  margin: 0 0 0.35rem;
+}
+
+.chart-canvas-wrapper {
+  position: relative;
+  height: 220px;
+  width: 100%;
+  min-width: 260px;
 }

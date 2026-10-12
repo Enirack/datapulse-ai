@@ -1,0 +1,53 @@
+:host {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.boxplot {
+  flex-shrink: 0;
+}
+
+.whisker,
+.cap {
+  stroke: #64748b;
+  stroke-width: 1.5;
+}
+
+.box {
+  fill: #dbeafe;
+  stroke: #2563eb;
+  stroke-width: 1.5;
+}
+
+.median {
+  stroke: #1d4ed8;
+  stroke-width: 2;
+}
+
+.boxplot-legend {
+  margin: 0;
+  font-size: 0.8rem;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.15rem 0.5rem;
+
+  div {
+    display: contents;
+  }
+
+  dt {
+    color: #64748b;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    color: #1e293b;
+  }
+}
+
+.boxplot-empty {
+  font-size: 0.85rem;
+  color: #64748b;
+}

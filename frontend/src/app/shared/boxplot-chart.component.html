@@ -1,0 +1,20 @@
+@if (geometry(); as g) {
+  <svg [attr.viewBox]="'0 0 ' + svgWidth + ' ' + svgHeight" [attr.width]="svgWidth" [attr.height]="svgHeight" class="boxplot">
+    <line [attr.x1]="g.whiskerX" [attr.x2]="g.whiskerX" [attr.y1]="g.lowerWhiskerY" [attr.y2]="g.q1Y" class="whisker" />
+    <line [attr.x1]="g.whiskerX" [attr.x2]="g.whiskerX" [attr.y1]="g.q3Y" [attr.y2]="g.upperWhiskerY" class="whisker" />
+    <line [attr.x1]="g.boxLeft" [attr.x2]="g.boxRight" [attr.y1]="g.lowerWhiskerY" [attr.y2]="g.lowerWhiskerY" class="cap" />
+    <line [attr.x1]="g.boxLeft" [attr.x2]="g.boxRight" [attr.y1]="g.upperWhiskerY" [attr.y2]="g.upperWhiskerY" class="cap" />
+    <rect [attr.x]="g.boxLeft" [attr.y]="g.q3Y" [attr.width]="g.boxRight - g.boxLeft" [attr.height]="g.q1Y - g.q3Y" class="box" />
+    <line [attr.x1]="g.boxLeft" [attr.x2]="g.boxRight" [attr.y1]="g.medianY" [attr.y2]="g.medianY" class="median" />
+  </svg>
+  <dl class="boxplot-legend">
+    <div><dt>Max</dt><dd>{{ g.labelFor(boxplot().max) }}</dd></div>
+    <div><dt>Q3</dt><dd>{{ g.labelFor(boxplot().q3) }}</dd></div>
+    <div><dt>Median</dt><dd>{{ g.labelFor(boxplot().median) }}</dd></div>
+    <div><dt>Q1</dt><dd>{{ g.labelFor(boxplot().q1) }}</dd></div>
+    <div><dt>Min</dt><dd>{{ g.labelFor(boxplot().min) }}</dd></div>
+    <div><dt>Outliers</dt><dd>{{ boxplot().outlierCount }}</dd></div>
+  </dl>
+} @else {
+  <p class="boxplot-empty">Not enough data for a box plot.</p>
+}

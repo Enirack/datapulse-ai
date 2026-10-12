@@ -63,6 +63,44 @@ const sampleRecommendations = {
   ],
 };
 
+const sampleAnalyticsResult = {
+  schemaVersion: '1.0',
+  dataset: { rows: 4, columns: 3, totalCells: 12, totalNullCells: 0, nullPercentage: 0, duplicateRowCount: 0, duplicateRowPercentage: 0 },
+  summary: { numericColumnCount: 1, categoricalColumnCount: 1, temporalColumnCount: 1, unanalyzedColumnCount: 0, chartCount: 4 },
+  numeric: [
+    {
+      column: 'age',
+      statistics: {
+        count: 4, missingCount: 0, missingPercentage: 0, uniqueCount: 4, min: 25, max: 41, mean: 31.5, median: 30,
+        standardDeviation: 6.6, variance: 43.6, q1: 25, q3: 36.75, iqr: 11.75, sum: 126, range: 16,
+      },
+      histogram: { type: 'histogram', column: 'age', bins: [25, 33, 41], counts: [2, 2] },
+      boxplot: { type: 'boxplot', column: 'age', min: 25, q1: 25, median: 30, q3: 36.75, max: 41, lowerFence: 7.4, upperFence: 54.4, outlierCount: 0 },
+    },
+  ],
+  categorical: [
+    {
+      column: 'city',
+      statistics: { count: 4, missingCount: 0, missingPercentage: 0, uniqueCount: 2, topValues: [{ value: 'Paris', count: 2, percentage: 50 }] },
+      chart: { type: 'bar', column: 'city', labels: ['Paris', 'Dakar'], values: [2, 2] },
+    },
+  ],
+  temporal: [
+    {
+      column: 'joined_at',
+      statistics: { count: 4, missingCount: 0, missingPercentage: 0, minDate: '2026-01-01', maxDate: '2026-04-01' },
+      chart: { type: 'time_series', column: 'joined_at', granularity: 'month', x: ['2026-01-01', '2026-04-01'], y: [2, 2] },
+    },
+  ],
+  correlations: { type: 'correlation_matrix', method: 'pearson', columns: ['age'], matrix: [[1]] },
+  scatter: [
+    {
+      type: 'scatter', xColumn: 'age', yColumn: 'age', correlation: 1, points: [{ x: 25, y: 25 }],
+      totalPoints: 1, sampled: false, sampleSize: 1,
+    },
+  ],
+};
+
 describe('DatasetDetailComponent', () => {
   let httpMock: HttpTestingController;
 
@@ -89,6 +127,11 @@ describe('DatasetDetailComponent', () => {
     fixture.detectChanges();
 
     httpMock.expectOne(baseUrl(`/datasets/${DATASET_ID}/versions/${VERSION_ID}/cleaning-recommendations`)).flush(sampleRecommendations);
+    fixture.detectChanges();
+
+    httpMock
+      .expectOne(baseUrl(`/datasets/${DATASET_ID}/versions/${VERSION_ID}/analytics`))
+      .flush({ status: 'error', message: 'Not analyzed yet.' }, { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
 
     return fixture;
@@ -228,5 +271,106 @@ describe('DatasetDetailComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Cleaning failed');
     expect(compiled.textContent).toContain('Column "age" does not exist');
+  });
+
+  it('shows an empty state when no analytics have been run yet', async () => {
+    const fixture = await createComponent();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.textContent).toContain('No analytics yet');
+  });
+
+  it('shows a loading state while analytics run, then renders the summary and charts on success', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    component.runAnalytics();
+    fixture.detectChanges();
+    expect(compiled.querySelector('.analytics-actions button:not(.secondary)')?.textContent).toContain('Analyzing…');
+
+    httpMock.expectOne(baseUrl(`/datasets/${DATASET_ID}/versions/${VERSION_ID}/analytics`)).flush({
+      id: 'analytics-1',
+      datasetVersionId: VERSION_ID,
+      type: 'analytics',
+      status: 'completed',
+      resultSchemaVersion: '1.0',
+      result: sampleAnalyticsResult,
+      errorMessage: null,
+      createdAt: '2026-01-01T00:00:00Z',
+      startedAt: '2026-01-01T00:00:00Z',
+      completedAt: '2026-01-01T00:00:00Z',
+    });
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('.analytics-actions button:not(.secondary)')?.textContent).toContain('Re-run analytics');
+    expect(compiled.textContent).toContain('Summary');
+    expect(compiled.textContent).toContain('4'); // rows
+  });
+
+  it('renders numeric, categorical, temporal, correlation and scatter sections on a completed analysis', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    component.runAnalytics();
+    httpMock.expectOne(baseUrl(`/datasets/${DATASET_ID}/versions/${VERSION_ID}/analytics`)).flush({
+      id: 'analytics-1',
+      datasetVersionId: VERSION_ID,
+      type: 'analytics',
+      status: 'completed',
+      resultSchemaVersion: '1.0',
+      result: sampleAnalyticsResult,
+      errorMessage: null,
+      createdAt: '2026-01-01T00:00:00Z',
+      startedAt: '2026-01-01T00:00:00Z',
+      completedAt: '2026-01-01T00:00:00Z',
+    });
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('age');
+    expect(compiled.textContent).toContain('city');
+    expect(compiled.textContent).toContain('joined_at');
+    expect(compiled.textContent).toContain('Granularity: month');
+    expect(compiled.querySelector('app-correlation-matrix')).toBeTruthy();
+    expect(compiled.textContent).toContain('age vs age');
+  });
+
+  it('surfaces a failed analytics run', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    component.runAnalytics();
+    httpMock.expectOne(baseUrl(`/datasets/${DATASET_ID}/versions/${VERSION_ID}/analytics`)).flush({
+      id: 'analytics-2',
+      datasetVersionId: VERSION_ID,
+      type: 'analytics',
+      status: 'failed',
+      resultSchemaVersion: null,
+      result: null,
+      errorMessage: 'Internal error while analyzing the dataset.',
+      createdAt: '2026-01-01T00:00:00Z',
+      startedAt: '2026-01-01T00:00:00Z',
+      completedAt: '2026-01-01T00:00:00Z',
+    });
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('Internal error while analyzing the dataset.');
+  });
+
+  it('surfaces a transport-level analytics error without crashing', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    component.runAnalytics();
+    httpMock.expectOne(baseUrl(`/datasets/${DATASET_ID}/versions/${VERSION_ID}/analytics`)).flush(
+      { message: 'Something went wrong.' },
+      { status: 500, statusText: 'Internal Server Error' },
+    );
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('.error')?.textContent).toContain('Something went wrong.');
   });
 });
