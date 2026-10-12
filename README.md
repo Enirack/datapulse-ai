@@ -9,9 +9,9 @@ Dataset
   -> ingestion
   -> validation
   -> profiling
-  -> cleaning
-  -> statistical analysis
-  -> anomaly detection
+  -> cleaning & transformation
+  -> statistical analysis & analytics
+  -> correlation & scatter plots
   -> visualization data
   -> structured insights
   -> AI interpretation
@@ -21,11 +21,11 @@ Dataset
 
 ## Stack
 
-| Service       | Stack                                          |
-|---------------|--------------------------------------------------|
-| `frontend`    | Angular 22, TypeScript                            |
-| `backend`     | Symfony 8, PHP 8.4, Doctrine ORM, PostgreSQL, JWT  |
-| `data-engine` | Python, FastAPI, Pandas, NumPy, SciPy              |
+| Service       | Stack                                                     |
+|---------------|-----------------------------------------------------------|
+| `frontend`    | Angular 22, TypeScript, Chart.js                          |
+| `backend`     | Symfony 8, PHP 8.4, Doctrine ORM, PostgreSQL, JWT, PHPStan |
+| `data-engine` | Python 3.12+, FastAPI, Pandas, NumPy, SciPy, Ruff, Mypy   |
 
 Full architecture, service responsibilities, and inter-service communication: [`docs/architecture.md`](docs/architecture.md).
 
@@ -33,12 +33,12 @@ Full architecture, service responsibilities, and inter-service communication: [`
 
 ```
 datapulse-ai/
-├── frontend/         Angular 22 app
-├── backend/          Symfony 8 API
-├── data-engine/      FastAPI data processing service
+├── frontend/         Angular 22 app with Chart.js visualizations
+├── backend/          Symfony 8 API orchestration layer
+├── data-engine/      FastAPI data processing and analytics service
 ├── infrastructure/   Cross-cutting deployment config (nginx, etc.)
-├── docs/             Architecture and development docs
-├── .github/          CI workflows
+├── docs/             Architecture, profiling, cleaning, analytics contracts
+├── .github/          CI workflows (testing, linting, static analysis)
 ├── docker-compose.yml
 └── README.md
 ```
@@ -69,14 +69,14 @@ Full setup (including running each service natively without Docker), environment
 
 This project is built incrementally, one phase at a time, never skipping ahead:
 
-1. Foundation — monorepo scaffolding, health checks, Docker Compose, domain schema
-2. Data ingestion — JWT auth, secure file upload, validation, untrusted-input protections
-3. **Data profiling** — deterministic type detection, statistics, data quality, in the Python engine *(current)*
-4. Data cleaning and analysis
-5. Visualization and insights
-6. AI analyst
-7. Professional UI
-8. Production readiness
+1. ✅ **Foundation** — monorepo scaffolding, health checks, Docker Compose, domain schema
+2. ✅ **Data ingestion** — JWT auth, secure file upload, validation, untrusted-input protections
+3. ✅ **Data profiling** — deterministic type detection, column statistics, IQR outliers, quality metrics
+4. ✅ **Data cleaning** — automated recommendations, dry-run preview, non-destructive versioning
+5. ✅ **Data analytics & visualization** — numeric distributions, boxplots, correlations, time series, Chart.js
+6. ⏳ **AI analyst** — automated narrative generation, LLM reasoning over computed facts *(next)*
+7. ⏳ **Professional UI** — complete design system, dark mode, responsive dashboards
+8. ⏳ **Production readiness** — security hardening, E2E tests, metrics, deployment
 
 ## Data principles
 
@@ -86,16 +86,29 @@ This project is built incrementally, one phase at a time, never skipping ahead:
 - Insights are explicitly tagged as a `computed_fact`, a `statistical_interpretation`, or a `recommendation` — never presented as if they were the same kind of claim.
 - Uploaded files are treated as untrusted input. Path traversal, decompression bombs, oversized files, memory exhaustion, CSV injection, and malicious spreadsheet content are all actively guarded against — see [`docs/architecture.md`](docs/architecture.md#dataset-ingestion-phase-2) for the full pipeline.
 
-## Tests
+## Quality & Tests
 
 ```bash
+# Backend (PHPUnit + PHPStan static analysis)
+cd backend && vendor/bin/phpstan analyse --no-progress
 cd backend && php bin/phpunit
-cd data-engine && .venv/Scripts/python.exe -m pytest   # or your venv's python
+
+# Data engine (pytest + ruff linter + mypy type checker)
+cd data-engine && ruff check .
+cd data-engine && mypy app/
+cd data-engine && pytest
+
+# Frontend (Vitest unit tests + ESLint)
+cd frontend && npm run lint
 cd frontend && npx ng test --watch=false
 ```
 
-All three run automatically in CI on every push/PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+All quality checks and tests run automatically in CI on every push/PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Status
 
-**Data profiling phase complete.** An uploaded dataset can be profiled on demand: the Symfony backend orchestrates, the Python data engine reads the file from a storage volume it shares with the backend (no file bytes over HTTP) and computes row/column counts, per-column business types (integer/float/boolean/string/date/datetime/categorical/unknown), null/unique/duplicate stats, numeric statistics, categorical top-values, and IQR outliers — all against a versioned JSON contract, never leaking NaN/Infinity, never exceeding documented size limits. Results persist on the `Analysis` entity; requests are idempotent by default. A minimal Angular UI (login, dataset list/upload, "Analyser" + results table) proves the frontend consumes it correctly. Full contract: [`docs/data-profiling.md`](docs/data-profiling.md). No cleaning, anomaly detection, visualization, or AI yet — that starts in Phase 4.
+**Phases 1 through 5 complete.** 
+- **Profiling (Phase 3):** Deterministic type detection, null/unique/duplicate statistics, IQR outliers. Full contract: [`docs/data-profiling.md`](docs/data-profiling.md).
+- **Cleaning (Phase 4):** Issue detection, actionable recommendations, before/after preview, reproducible operation pipelines, non-destructive version creation. Full contract: [`docs/data-cleaning.md`](docs/data-cleaning.md).
+- **Analytics & Visualization (Phase 5):** Numeric distributions (mean, median, std dev, min/max, sum), histogram binning, SVG-styled boxplots, categorical bar charts, temporal aggregation (day/week/month/year), Pearson correlation matrices, downsampled scatter relationships. Full contract: [`docs/data-analytics.md`](docs/data-analytics.md).
+- **Architecture & Quality:** Component-based UI architecture, global toast notifications, strict linting (ESLint, Ruff), static type checking (PHPStan level 5, Mypy), automated CI pipeline.
