@@ -9,10 +9,9 @@ Dataset
   -> ingestion
   -> validation
   -> profiling
-  -> cleaning                <- Phase 4 (current)
+  -> cleaning
   -> statistical analysis
-  -> anomaly detection
-  -> visualization data
+  -> visualization data      <- Phase 5 (current)
   -> structured insights
   -> AI interpretation
   -> natural-language questions
@@ -23,16 +22,16 @@ Dataset
 
 | Service       | Stack                                          | Responsibility |
 |---------------|-------------------------------------------------|----------------|
-| `frontend`    | Angular 22, TypeScript                          | User interface: dashboard, dataset upload, visualizations, chat with the AI analyst. Talks only to `backend`. |
+| `frontend`    | Angular 22, TypeScript, Chart.js                | User interface: dashboard, dataset upload, cleaning, analytics/visualizations (phase 5), and (later) chat with the AI analyst. Talks only to `backend`. |
 | `backend`     | Symfony 8, PHP 8.4, Doctrine ORM, PostgreSQL     | REST API, authentication (JWT), persistence, request validation, file ingestion/storage, orchestration of the data engine, and (later) the AI layer. |
-| `data-engine` | Python, FastAPI, Pandas, NumPy, SciPy            | The deterministic analytical core: parsing, profiling, cleaning, statistics, anomaly detection. Produces structured, computed results — never prose. Now called by the backend for both profiling (phase 3) and cleaning (phase 4); statistics/anomaly detection are still future phases. |
+| `data-engine` | Python, FastAPI, Pandas, NumPy                   | The deterministic analytical core: parsing, profiling, cleaning, analytics (descriptive statistics + chart-ready data). Produces structured, computed results — never prose. Called by the backend for profiling (phase 3), cleaning (phase 4), and analytics (phase 5); an AI interpretation layer is still a future phase. |
 
 The frontend never talks to the data engine directly, and the data engine never talks to the frontend. The backend is the single entry point and the only service with a database connection and a storage volume; it is also the only service that will hold API credentials for the AI provider once the AI layer is built, so those never reach the browser or the data engine.
 
 ## Communication between services
 
 - **frontend → backend**: HTTPS/JSON over `/api/*`. In production this is proxied by nginx (see `infrastructure/nginx/frontend.conf`); in development it's called directly at `http://localhost:8020`.
-- **backend → data-engine**: HTTP/JSON over the internal Docker network (`http://data-engine:8001`), not exposed to the browser. Used for profiling (phase 3, [`data-profiling.md`](./data-profiling.md)) and cleaning (phase 4, [`data-cleaning.md`](./data-cleaning.md)). The two services share a storage volume (read-write for both since phase 4 — see "Data profiling" below) so dataset files and cleaning results never cross the wire as HTTP payloads.
+- **backend → data-engine**: HTTP/JSON over the internal Docker network (`http://data-engine:8001`), not exposed to the browser. Used for profiling (phase 3, [`data-profiling.md`](./data-profiling.md)), cleaning (phase 4, [`data-cleaning.md`](./data-cleaning.md)), and analytics (phase 5, [`data-analytics.md`](./data-analytics.md)) — all three through the single `App\Profiling\DataEngineClientInterface`. The two services share a storage volume (read-write for both since phase 4 — see "Data profiling" below) so dataset files and cleaning results never cross the wire as HTTP payloads; analytics only ever reads from it.
 - **backend → PostgreSQL**: Doctrine DBAL over the internal network.
 
 ## Authentication (phase 2)
@@ -114,6 +113,15 @@ GET  /api/datasets/{datasetId}/versions/{versionId}/clean                      f
 
 Same ownership + version-scoping rules as profiling. A successful, data-changing clean creates a new `DatasetVersion` (`kind: cleaned`, `sourceVersion` pointing back at the version that was cleaned) — the version that was cleaned is never modified. `Analysis` gained `resultVersion` (the produced version, nullable), `operations` (the requested pipeline, JSON), and `pipelineFingerprint` (idempotency key) this phase. Full contract, transformation catalog, recommendation rules, conversion-failure policy, and idempotency strategy: [`data-cleaning.md`](./data-cleaning.md).
 
+## Data analytics (phase 5)
+
+```
+POST /api/datasets/{datasetId}/versions/{versionId}/analytics   idempotent by default; ?force=true bypasses reuse
+GET  /api/datasets/{datasetId}/versions/{versionId}/analytics   fetch the latest analytics analysis without triggering one
+```
+
+Same ownership + version-scoping rules as profiling and cleaning. Read-only — never writes a file, never creates a `DatasetVersion`. Reuses `Analysis` as-is (`type: analytics`; the `operations`/`pipelineFingerprint` fields introduced for cleaning are reused generically as "configuration/fingerprint", not redeclared). Column selection (numeric/categorical/temporal/unanalyzed), all statistics, histograms, box plots, a Pearson correlation matrix, and scatter plots are all deterministic — no AI/ML anywhere in this phase. Full contract, chart types, automatic-selection rules, limits, and chart library choice: [`data-analytics.md`](./data-analytics.md).
+
 ## Error handling
 
 All exceptions raised under `/api/*` are caught by `App\EventListener\ApiExceptionListener` and converted to a consistent JSON shape:
@@ -151,6 +159,7 @@ Monolog is configured per environment (`config/packages/monolog.yaml`):
 - Nothing from an uploaded file is ever executed — not as a shell command, not as a macro, not as a dependency install.
 - The data engine never trusts a storage identifier blindly either, even though it only ever receives one from the trusted backend — same path-containment and symlink checks as the PHP storage class, independently implemented in Python. It has no database access and is never reachable from the browser.
 - Cleaning requests never carry a file path — only a pipeline of operations. The server alone decides which physical file gets read, from the `storagePath` already on record for the version in the URL; there is no field anywhere in the request a client could use to point at an arbitrary file.
+- Analytics requests never carry a file path either — only the version id in the URL. The analytics result itself never exposes the physical storage path or any filesystem detail.
 - CORS is restricted to `localhost`/`127.0.0.1` origins by default (`CORS_ALLOW_ORIGIN`).
 - No secrets are committed. `.env` in `backend/` ships with the Symfony skeleton's public dev defaults plus non-secret app defaults (`MAX_UPLOAD_SIZE`, `DATASET_STORAGE_DIR`); JWT keys and real per-environment secrets are git-ignored (`.env.local`, `config/jwt/*.pem`).
 - Still deferred: rate limiting on auth endpoints, account lockout, email verification, refresh tokens — none of these are needed for a single-request ingestion flow and would be premature before there's a reason to harden auth further.

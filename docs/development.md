@@ -65,9 +65,13 @@ curl -X POST "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId
   -H "Content-Type: application/json" -d '{"operations":[{"type":"remove_duplicate_rows"}]}'
 curl -X POST "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/clean" -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -d '{"operations":[{"type":"remove_duplicate_rows"}]}'
+
+# Run analytics on a dataset version (typically the cleaned one), then fetch the latest result
+curl -X POST "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/analytics" -H "Authorization: Bearer $TOKEN"
+curl "http://localhost:8020/api/datasets/<datasetId>/versions/<versionId>/analytics" -H "Authorization: Bearer $TOKEN"
 ```
 
-Full profiling contract, security model, and limits: [`data-profiling.md`](./data-profiling.md). Full cleaning contract, transformation catalog, and idempotency strategy: [`data-cleaning.md`](./data-cleaning.md).
+Full profiling contract, security model, and limits: [`data-profiling.md`](./data-profiling.md). Full cleaning contract, transformation catalog, and idempotency strategy: [`data-cleaning.md`](./data-cleaning.md). Full analytics contract, chart types, and limits: [`data-analytics.md`](./data-analytics.md).
 
 ## Environment variables
 
@@ -111,7 +115,19 @@ php bin/console doctrine:migrations:migrate --env=test --no-interaction
 php bin/phpunit
 ```
 
-Profiling and cleaning tests are the one exception to "hit the real thing": `App\Profiling\DataEngineClientInterface` (which now covers both) is bound to `App\Tests\Support\FakeDataEngineClient` `when@test` (see `config/services.yaml`), because a natively-run PHPUnit process has no access to the Docker-shared storage volume a real data-engine call would need to read from. The fake still writes a real file under the tmp dir when simulating a data-changing clean, so `CleaningService`'s real commit-to-permanent-storage path is genuinely exercised — only the network/Python boundary is faked. Profiling/cleaning *correctness* is covered by the data engine's own test suite and by manual Docker verification, not by backend unit tests.
+Profiling, cleaning, and analytics tests are the one exception to "hit the real thing": `App\Profiling\DataEngineClientInterface` (which now covers all three) is bound to `App\Tests\Support\FakeDataEngineClient` `when@test` (see `config/services.yaml`), because a natively-run PHPUnit process has no access to the Docker-shared storage volume a real data-engine call would need to read from. The fake still writes a real file under the tmp dir when simulating a data-changing clean, so `CleaningService`'s real commit-to-permanent-storage path is genuinely exercised — only the network/Python boundary is faked. Profiling/cleaning/analytics *correctness* is covered by the data engine's own test suite and by manual Docker verification, not by backend unit tests.
+
+### Static analysis
+
+```bash
+cd backend
+DATABASE_URL=<a reachable Postgres DSN> php vendor/bin/phpstan analyse   # level 5, phpstan.dist.neon — see docs/data-analytics.md "PHPStan"
+```
+
+```bash
+cd frontend
+npm run lint    # ng lint — angular-eslint flat config, eslint.config.js
+```
 
 **Data engine:**
 ```bash
@@ -163,9 +179,12 @@ datapulse-ai/
 
 - **Migrations are not auto-run on container start.** Running migrations automatically on boot is a production-deployment concern (rollback strategy, zero-downtime considerations) that belongs to the "Production readiness" phase, not Foundation. For now, run them manually (see above).
 - **`doctrine/orm` is pinned to `^3.6,!=3.6.8`.** Version `3.6.8` (current at the time of writing) ships a `GenerateSchemaEventArgs::setSchema()` that unconditionally requires DBAL's not-yet-stable `Schema::edit()` API (DBAL `^4.5`, which only has a `dev` release), which breaks every schema-generating command (`doctrine:migrations:diff`, `doctrine:schema:update`) even though it's guarded with `method_exists()`. This is an upstream version-skew bug, not a project defect. Revisit this pin once a fixed `doctrine/orm` patch or a stable DBAL `4.5` ships.
-- **No PHPStan/ESLint/mypy yet.** Deferred again this phase — four phases of real business logic now exist without it; worth reconsidering before phase 5 adds more.
+- **No mypy yet for the data engine.** PHPStan (backend) and ESLint (frontend) were introduced in Phase 5 — see `docs/data-analytics.md` "PHPStan"/"ESLint"; the Python side still has no static type checker.
 - **A `Dataset` can only get a new `DatasetVersion` via upload or cleaning.** There's still no "upload a replacement file for an existing dataset" endpoint — only cleaning produces a version 2+, and only ever as `kind: cleaned`.
 - **Cleaning has no cross-request locking**, same documented limitation as profiling — see `docs/data-cleaning.md#idempotency`.
+- **Analytics has no cross-request locking**, same documented limitation as profiling and cleaning — see `docs/data-analytics.md#idempotence`.
+- **Analytics has no user-selectable configuration yet** — column selection, chart limits, and granularity are all fully automatic. The idempotency fingerprint already reserves room for this (see `docs/data-analytics.md#idempotence`) but no endpoint currently accepts parameters.
+- **Frontend chart tests verify data wiring, not rendered pixels.** `vitest`/`jsdom` has no real `<canvas>` backend — see `docs/data-analytics.md` "Chart library choice".
 - **Cleaning's `estimatedAffectedRows` preview number can double-count** a row touched by more than one operation in the pipeline — documented in `docs/data-cleaning.md#preview` as a deliberate simplicity/precision tradeoff for a number that's explicitly only an estimate.
 - **Whitespace recommendations only fire on whitespace-*only* cells**, not general leading/trailing whitespace on otherwise-normal values — a real gap in Phase 3's profiling contract (no such stat exists there), documented rather than worked around by re-reading the file at recommendation time. See `docs/data-cleaning.md`.
 - **Duplicate-checksum detection is informational only.** A re-upload of identical content creates a brand new `Dataset` + `DatasetVersion` and merely reports `possibleDuplicateOfDatasetId` in the response — it does not block or dedupe storage. Deliberate: rejecting a legitimate re-upload would be more surprising than helpful at this phase.
