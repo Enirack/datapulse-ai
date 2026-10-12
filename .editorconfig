@@ -1,0 +1,25 @@
+# EditorConfig — https://editorconfig.org
+# One config for the whole monorepo; per-service overrides live in
+# their own .editorconfig if they ever need to diverge.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Frontend (Angular / TypeScript / JSON / SCSS)
+[frontend/**.{ts,html,scss,json,js}]
+indent_size = 2
+
+# YAML (CI, Docker Compose, etc.)
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
