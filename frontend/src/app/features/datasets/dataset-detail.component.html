@@ -4,18 +4,18 @@
   <p>Loading…</p>
 } @else if (loadError(); as message) {
   <p class="error">{{ message }}</p>
-} @else if (dataset(); as dataset) {
+} @else if (dataset(); as currentDataset) {
   <section class="dataset-detail">
-    <h1>{{ dataset.name }}</h1>
-    @if (dataset.description) {
-      <p class="description">{{ dataset.description }}</p>
+    <h1>{{ currentDataset.name }}</h1>
+    @if (currentDataset.description) {
+      <p class="description">{{ currentDataset.description }}</p>
     }
 
     <dl class="summary">
-      <div><dt>Status</dt><dd>{{ dataset.status }}</dd></div>
-      @if (dataset.versions[0]; as version) {
+      <div><dt>Status</dt><dd>{{ currentDataset.status }}</dd></div>
+      @if (currentVersion(); as version) {
         <div><dt>File</dt><dd>{{ version.originalFilename }}</dd></div>
-        <div><dt>Size</dt><dd>{{ version.fileSize }} bytes</dd></div>
+        <div><dt>Size</dt><dd>{{ version.fileSize | fileSize }}</dd></div>
         <div><dt>Checksum</dt><dd class="mono">{{ version.checksum.slice(0, 16) }}…</dd></div>
         @if (version.hasFormulaInjectionRisk) {
           <div class="warning"><dt>⚠</dt><dd>Possible spreadsheet formula content detected</dd></div>
@@ -23,352 +23,35 @@
       }
     </dl>
 
-    <div class="analyze-bar">
-      <button type="button" [disabled]="analyzing()" (click)="analyze()">
-        {{ analyzing() ? 'Analyzing…' : analysis() ? 'Re-analyze' : 'Analyser' }}
-      </button>
-      @if (analysis()) {
-        <button type="button" class="secondary" [disabled]="analyzing()" (click)="analyze(true)">Force fresh analysis</button>
-      }
-    </div>
+    <app-profile-section
+      [analysis]="analysis()"
+      [analyzing]="analyzing()"
+      [analysisError]="analysisError()"
+      (analyzeRequested)="analyze($event)"
+    />
 
-    @if (analysisError(); as message) {
-      <p class="error">{{ message }}</p>
-    }
+    <app-cleaning-section
+      [recommendations]="recommendations()"
+      [loadingRecommendations]="loadingRecommendations()"
+      [selectedOperations]="selectedOperations()"
+      [previewing]="previewing()"
+      [previewResult]="previewResult()"
+      [previewError]="previewError()"
+      [applying]="applying()"
+      [cleaningResult]="cleaningResult()"
+      [cleaningError]="cleaningError()"
+      (operationToggled)="toggleOperation($event.type, $event.column)"
+      (operationRemoved)="removeSelectedOperation($event)"
+      (previewRequested)="preview()"
+      (applyRequested)="applyCleaning()"
+      (viewCleanedRequested)="viewCleanedDataset()"
+    />
 
-    @if (analysis(); as analysis) {
-      <section class="analysis">
-        <p class="analysis-status" [class]="'analysis-status--' + analysis.status">
-          Analysis: {{ analysis.status }}
-        </p>
-
-        @if (analysis.status === 'failed' && analysis.errorMessage) {
-          <p class="error">{{ analysis.errorMessage }}</p>
-        }
-
-        @if (analysis.result; as result) {
-          <dl class="summary">
-            <div><dt>Rows</dt><dd>{{ result.dataset.rows }}</dd></div>
-            <div><dt>Columns</dt><dd>{{ result.dataset.columns }}</dd></div>
-            <div><dt>Null cells</dt><dd>{{ result.dataset.totalNullCells }} ({{ result.dataset.nullPercentage }}%)</dd></div>
-            <div><dt>Duplicate rows</dt><dd>{{ result.dataset.duplicateRowCount }} ({{ result.dataset.duplicateRowPercentage }}%)</dd></div>
-          </dl>
-
-          <div class="columns-table-wrapper">
-            <table class="columns-table">
-              <thead>
-                <tr>
-                  <th>Column</th>
-                  <th>Type</th>
-                  <th>Nulls</th>
-                  <th>Unique</th>
-                  <th>Mean</th>
-                  <th>Min</th>
-                  <th>Max</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (column of result.columns; track column.name) {
-                  <tr>
-                    <td>{{ column.name }}</td>
-                    <td>{{ column.detectedType }}</td>
-                    <td>{{ column.nullCount }} ({{ column.nullPercentage }}%)</td>
-                    <td>{{ column.uniqueCount }} ({{ column.uniquePercentage }}%)</td>
-                    <td>{{ column.statistics?.mean ?? '—' }}</td>
-                    <td>{{ column.statistics?.min ?? '—' }}</td>
-                    <td>{{ column.statistics?.max ?? '—' }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-      </section>
-    }
-
-    @if (loadingRecommendations() || recommendations().length > 0) {
-      <section class="cleaning">
-        <h2>Cleaning Recommendations</h2>
-
-        @if (loadingRecommendations()) {
-          <p>Loading recommendations…</p>
-        } @else if (recommendations().length === 0) {
-          <p class="empty">No issues detected — this dataset looks clean.</p>
-        } @else {
-          <ul class="recommendations">
-            @for (recommendation of recommendations(); track $index) {
-              <li>
-                <p class="recommendation-issue">
-                  ⚠
-                  @if (recommendation.issue) {
-                    {{ recommendation.issue }}
-                  } @else if (recommendation.type === 'outliers') {
-                    {{ recommendation.outlierCount }} outliers ({{ recommendation.outlierPercentage }}%, {{ recommendation.method }})
-                  }
-                  @if (recommendation.column) {
-                    <span class="recommendation-column">{{ recommendation.column }}</span>
-                  }
-                </p>
-                <div class="recommendation-actions">
-                  @for (action of recommendation.recommendedActions; track action) {
-                    @if (isActionable(action)) {
-                      <button
-                        type="button"
-                        class="chip"
-                        [class.chip--selected]="isSelected(action, recommendation.column)"
-                        (click)="toggleOperation(action, recommendation.column)"
-                      >
-                        {{ isSelected(action, recommendation.column) ? '✓ ' : '' }}{{ actionLabel(action) }}
-                      </button>
-                    } @else if (action === 'review') {
-                      <span class="chip chip--info">Review manually</span>
-                    }
-                  }
-                </div>
-              </li>
-            }
-          </ul>
-        }
-
-        @if (selectedOperations().length > 0) {
-          <div class="selected-operations">
-            <h3>Selected operations</h3>
-            <ul>
-              @for (operation of selectedOperations(); track $index) {
-                <li>
-                  ✓ {{ operationLabel(operation) }}
-                  <button type="button" class="link-button" (click)="removeSelectedOperation($index)">remove</button>
-                </li>
-              }
-            </ul>
-
-            <div class="cleaning-actions">
-              <button type="button" class="secondary" [disabled]="previewing()" (click)="preview()">
-                {{ previewing() ? 'Previewing…' : 'Preview' }}
-              </button>
-              <button type="button" [disabled]="applying()" (click)="applyCleaning()">
-                {{ applying() ? 'Applying…' : 'Apply Cleaning' }}
-              </button>
-            </div>
-
-            @if (previewError(); as message) {
-              <p class="error">{{ message }}</p>
-            }
-
-            @if (previewResult(); as preview) {
-              <div class="preview-result">
-                <p>Estimated affected rows: <strong>{{ preview.estimatedAffectedRows }}</strong></p>
-                <p class="meta">
-                  {{ preview.before.dataset.rows }} rows → {{ preview.after.dataset.rows }} rows,
-                  {{ preview.before.dataset.columns }} → {{ preview.after.dataset.columns }} columns
-                </p>
-              </div>
-            }
-
-            @if (cleaningError(); as message) {
-              <p class="error">{{ message }}</p>
-            }
-
-            @if (cleaningResult(); as result) {
-              <div class="cleaning-result" [class.cleaning-result--failed]="result.status === 'failed'">
-                @if (result.status === 'completed') {
-                  <p class="cleaning-result-title">Cleaning completed</p>
-
-                  @if (!result.changed) {
-                    <p>No changes were needed — the data already matched the selected operations.</p>
-                  } @else if (result.report; as report) {
-                    <dl class="summary">
-                      <div><dt>Original</dt><dd>{{ report.before.dataset.rows }} rows</dd></div>
-                      <div><dt>Cleaned</dt><dd>{{ report.after.dataset.rows }} rows</dd></div>
-                    </dl>
-
-                    <p class="changes-title">Changes:</p>
-                    <ul class="changes-list">
-                      @for (opReport of report.operations; track $index) {
-                        <li>
-                          @if (opReport.operation === 'remove_duplicate_rows') {
-                            {{ opReport.affectedRows }} duplicate rows removed
-                          } @else if (opReport.operation === 'trim_whitespace' || opReport.operation === 'normalize_internal_whitespace') {
-                            {{ opReport.affectedRows }} values trimmed in <strong>{{ opReport.column }}</strong>
-                          } @else {
-                            {{ operationLabel({ type: opReport.operation, column: opReport.column ?? undefined }) }}:
-                            {{ opReport.affectedRows }} row(s) affected
-                            @if (opReport.details) { — {{ opReport.details }} }
-                          }
-                        </li>
-                      }
-                    </ul>
-
-                    <button type="button" (click)="viewCleanedDataset()">View cleaned dataset</button>
-                  }
-                } @else if (result.status === 'failed') {
-                  <p class="cleaning-result-title">Cleaning failed</p>
-                  <p class="error">{{ result.errorMessage }}</p>
-                }
-              </div>
-            }
-          </div>
-        }
-      </section>
-    }
-
-    <section class="analytics">
-      <h2>Dataset Analytics</h2>
-
-      <div class="analytics-actions">
-        <button type="button" [disabled]="runningAnalytics()" (click)="runAnalytics()">
-          {{ runningAnalytics() ? 'Analyzing…' : analyticsAnalysis() ? 'Re-run analytics' : 'Run analytics' }}
-        </button>
-        @if (analyticsAnalysis()) {
-          <button type="button" class="secondary" [disabled]="runningAnalytics()" (click)="runAnalytics(true)">Force fresh analytics</button>
-        }
-      </div>
-
-      @if (analyticsError(); as message) {
-        <p class="error">{{ message }}</p>
-      }
-
-      @if (!analyticsAnalysis() && !runningAnalytics()) {
-        <p class="empty">No analytics yet — run analytics to see statistics and charts for this dataset version.</p>
-      }
-
-      @if (analyticsAnalysis(); as analytics) {
-        @if (analytics.status === 'completed' && analytics.result; as result) {
-          <div class="analytics-summary">
-            <h3>Summary</h3>
-            <dl class="summary">
-              <div><dt>Rows</dt><dd>{{ result.dataset.rows.toLocaleString() }}</dd></div>
-              <div><dt>Columns</dt><dd>{{ result.dataset.columns }}</dd></div>
-              <div><dt>Missing values</dt><dd>{{ result.dataset.totalNullCells }} ({{ result.dataset.nullPercentage }}%)</dd></div>
-              <div><dt>Numeric</dt><dd>{{ result.summary.numericColumnCount }}</dd></div>
-              <div><dt>Categorical</dt><dd>{{ result.summary.categoricalColumnCount }}</dd></div>
-              <div><dt>Temporal</dt><dd>{{ result.summary.temporalColumnCount }}</dd></div>
-            </dl>
-          </div>
-
-          <div class="analytics-section">
-            <h3>Numeric Analysis</h3>
-            @if (result.numeric.length === 0) {
-              <p class="empty">No numeric columns detected in this dataset.</p>
-            } @else {
-              @for (col of result.numeric; track col.column) {
-                <div class="analytics-card">
-                  <h4>{{ col.column }}</h4>
-                  <dl class="summary summary--compact">
-                    <div><dt>Count</dt><dd>{{ col.statistics.count }}</dd></div>
-                    <div><dt>Missing</dt><dd>{{ col.statistics.missingCount }} ({{ col.statistics.missingPercentage }}%)</dd></div>
-                    <div><dt>Mean</dt><dd>{{ col.statistics.mean ?? '—' }}</dd></div>
-                    <div><dt>Median</dt><dd>{{ col.statistics.median ?? '—' }}</dd></div>
-                    <div><dt>Std dev</dt><dd>{{ col.statistics.standardDeviation ?? '—' }}</dd></div>
-                    <div><dt>Min / Max</dt><dd>{{ col.statistics.min ?? '—' }} / {{ col.statistics.max ?? '—' }}</dd></div>
-                    <div><dt>Sum</dt><dd>{{ col.statistics.sum ?? '—' }}</dd></div>
-                  </dl>
-
-                  <div class="chart-row">
-                    @if (col.histogram) {
-                      <div class="chart-box">
-                        <p class="chart-label">Histogram</p>
-                        <div class="chart-canvas-wrapper">
-                          <app-chart-canvas [config]="histogramConfig(col.histogram)" />
-                        </div>
-                      </div>
-                    }
-                    @if (col.boxplot) {
-                      <div class="chart-box">
-                        <p class="chart-label">Box Plot</p>
-                        <app-boxplot-chart [boxplot]="col.boxplot" />
-                      </div>
-                    }
-                  </div>
-                </div>
-              }
-            }
-          </div>
-
-          <div class="analytics-section">
-            <h3>Categorical Analysis</h3>
-            @if (result.categorical.length === 0) {
-              <p class="empty">No categorical columns detected in this dataset.</p>
-            } @else {
-              @for (col of result.categorical; track col.column) {
-                <div class="analytics-card">
-                  <h4>{{ col.column }}</h4>
-                  <p class="meta">{{ col.statistics.uniqueCount }} distinct values · {{ col.statistics.missingCount }} missing</p>
-                  <div class="chart-box chart-box--wide">
-                    <div class="chart-canvas-wrapper">
-                      <app-chart-canvas [config]="barConfig(col.chart)" />
-                    </div>
-                  </div>
-                </div>
-              }
-            }
-          </div>
-
-          <div class="analytics-section">
-            <h3>Temporal Analysis</h3>
-            @if (result.temporal.length === 0) {
-              <p class="empty">No date/datetime columns detected in this dataset.</p>
-            } @else {
-              @for (col of result.temporal; track col.column) {
-                <div class="analytics-card">
-                  <h4>{{ col.column }}</h4>
-                  <p class="meta">
-                    {{ col.statistics.minDate ?? '—' }} → {{ col.statistics.maxDate ?? '—' }}
-                    ({{ col.statistics.count }} values, {{ col.statistics.missingCount }} missing)
-                  </p>
-                  @if (col.chart) {
-                    <p class="meta">Granularity: {{ col.chart.granularity }}</p>
-                    <div class="chart-box chart-box--wide">
-                      <div class="chart-canvas-wrapper">
-                        <app-chart-canvas [config]="timeSeriesConfig(col.chart)" />
-                      </div>
-                    </div>
-                  } @else {
-                    <p class="empty">Not enough valid dates for a time series.</p>
-                  }
-                </div>
-              }
-            }
-          </div>
-
-          <div class="analytics-section">
-            <h3>Correlation</h3>
-            @if (result.correlations; as correlations) {
-              <app-correlation-matrix [matrix]="correlations" />
-            } @else {
-              <p class="empty">At least two numeric columns are needed to compute correlations.</p>
-            }
-          </div>
-
-          <div class="analytics-section">
-            <h3>Relationships</h3>
-            @if (result.scatter.length === 0) {
-              <p class="empty">No strongly related numeric pairs to plot.</p>
-            } @else {
-              @for (scatter of result.scatter; track scatter.xColumn + scatter.yColumn) {
-                <div class="analytics-card">
-                  <h4>{{ scatter.xColumn }} vs {{ scatter.yColumn }}</h4>
-                  <p class="meta">
-                    correlation: {{ scatter.correlation === null ? '—' : scatter.correlation.toFixed(2) }}
-                    @if (scatter.sampled) {
-                      · showing a sample of {{ scatter.sampleSize }} of {{ scatter.totalPoints }} points
-                    }
-                  </p>
-                  <div class="chart-box chart-box--wide">
-                    <div class="chart-canvas-wrapper">
-                      <app-chart-canvas [config]="scatterConfig(scatter)" />
-                    </div>
-                  </div>
-                </div>
-              }
-            }
-          </div>
-        } @else if (analytics.status === 'failed') {
-          <p class="error">{{ analytics.errorMessage }}</p>
-        } @else if (analytics.status === 'running' || analytics.status === 'pending') {
-          <p>Analytics in progress…</p>
-        }
-      }
-    </section>
+    <app-analytics-section
+      [analyticsAnalysis]="analyticsAnalysis()"
+      [runningAnalytics]="runningAnalytics()"
+      [analyticsError]="analyticsError()"
+      (analyticsRequested)="runAnalytics($event)"
+    />
   </section>
 }

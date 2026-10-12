@@ -1,0 +1,158 @@
+<section class="analytics">
+  <h2>Dataset Analytics</h2>
+
+  <div class="analytics-actions">
+    <button type="button" [disabled]="runningAnalytics()" (click)="onRunAnalytics()">
+      {{ runningAnalytics() ? 'Analyzing…' : analyticsAnalysis() ? 'Re-run analytics' : 'Run analytics' }}
+    </button>
+    @if (analyticsAnalysis()) {
+      <button type="button" class="secondary" [disabled]="runningAnalytics()" (click)="onRunAnalytics(true)">Force fresh analytics</button>
+    }
+  </div>
+
+  @if (analyticsError(); as message) {
+    <p class="error">{{ message }}</p>
+  }
+
+  @if (!analyticsAnalysis() && !runningAnalytics()) {
+    <p class="empty">No analytics yet — run analytics to see statistics and charts for this dataset version.</p>
+  }
+
+  @if (analyticsAnalysis(); as analytics) {
+    @if (analytics.status === 'completed' && analytics.result; as result) {
+      <div class="analytics-summary">
+        <h3>Summary</h3>
+        <dl class="summary">
+          <div><dt>Rows</dt><dd>{{ result.dataset.rows.toLocaleString() }}</dd></div>
+          <div><dt>Columns</dt><dd>{{ result.dataset.columns }}</dd></div>
+          <div><dt>Missing values</dt><dd>{{ result.dataset.totalNullCells }} ({{ result.dataset.nullPercentage }}%)</dd></div>
+          <div><dt>Numeric</dt><dd>{{ result.summary.numericColumnCount }}</dd></div>
+          <div><dt>Categorical</dt><dd>{{ result.summary.categoricalColumnCount }}</dd></div>
+          <div><dt>Temporal</dt><dd>{{ result.summary.temporalColumnCount }}</dd></div>
+        </dl>
+      </div>
+
+      <div class="analytics-section">
+        <h3>Numeric Analysis</h3>
+        @if (result.numeric.length === 0) {
+          <p class="empty">No numeric columns detected in this dataset.</p>
+        } @else {
+          @for (col of result.numeric; track col.column) {
+            <div class="analytics-card">
+              <h4>{{ col.column }}</h4>
+              <dl class="summary summary--compact">
+                <div><dt>Count</dt><dd>{{ col.statistics.count }}</dd></div>
+                <div><dt>Missing</dt><dd>{{ col.statistics.missingCount }} ({{ col.statistics.missingPercentage }}%)</dd></div>
+                <div><dt>Mean</dt><dd>{{ col.statistics.mean ?? '—' }}</dd></div>
+                <div><dt>Median</dt><dd>{{ col.statistics.median ?? '—' }}</dd></div>
+                <div><dt>Std dev</dt><dd>{{ col.statistics.standardDeviation ?? '—' }}</dd></div>
+                <div><dt>Min / Max</dt><dd>{{ col.statistics.min ?? '—' }} / {{ col.statistics.max ?? '—' }}</dd></div>
+                <div><dt>Sum</dt><dd>{{ col.statistics.sum ?? '—' }}</dd></div>
+              </dl>
+
+              <div class="chart-row">
+                @if (col.histogram) {
+                  <div class="chart-box">
+                    <p class="chart-label">Histogram</p>
+                    <div class="chart-canvas-wrapper">
+                      <app-chart-canvas [config]="histogramConfig(col.histogram)" />
+                    </div>
+                  </div>
+                }
+                @if (col.boxplot) {
+                  <div class="chart-box">
+                    <p class="chart-label">Box Plot</p>
+                    <app-boxplot-chart [boxplot]="col.boxplot" />
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="analytics-section">
+        <h3>Categorical Analysis</h3>
+        @if (result.categorical.length === 0) {
+          <p class="empty">No categorical columns detected in this dataset.</p>
+        } @else {
+          @for (col of result.categorical; track col.column) {
+            <div class="analytics-card">
+              <h4>{{ col.column }}</h4>
+              <p class="meta">{{ col.statistics.uniqueCount }} distinct values · {{ col.statistics.missingCount }} missing</p>
+              <div class="chart-box chart-box--wide">
+                <div class="chart-canvas-wrapper">
+                  <app-chart-canvas [config]="barConfig(col.chart)" />
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="analytics-section">
+        <h3>Temporal Analysis</h3>
+        @if (result.temporal.length === 0) {
+          <p class="empty">No date/datetime columns detected in this dataset.</p>
+        } @else {
+          @for (col of result.temporal; track col.column) {
+            <div class="analytics-card">
+              <h4>{{ col.column }}</h4>
+              <p class="meta">
+                {{ col.statistics.minDate ?? '—' }} → {{ col.statistics.maxDate ?? '—' }}
+                ({{ col.statistics.count }} values, {{ col.statistics.missingCount }} missing)
+              </p>
+              @if (col.chart) {
+                <p class="meta">Granularity: {{ col.chart.granularity }}</p>
+                <div class="chart-box chart-box--wide">
+                  <div class="chart-canvas-wrapper">
+                    <app-chart-canvas [config]="timeSeriesConfig(col.chart)" />
+                  </div>
+                </div>
+              } @else {
+                <p class="empty">Not enough valid dates for a time series.</p>
+              }
+            </div>
+          }
+        }
+      </div>
+
+      <div class="analytics-section">
+        <h3>Correlation</h3>
+        @if (result.correlations; as correlations) {
+          <app-correlation-matrix [matrix]="correlations" />
+        } @else {
+          <p class="empty">At least two numeric columns are needed to compute correlations.</p>
+        }
+      </div>
+
+      <div class="analytics-section">
+        <h3>Relationships</h3>
+        @if (result.scatter.length === 0) {
+          <p class="empty">No strongly related numeric pairs to plot.</p>
+        } @else {
+          @for (scatter of result.scatter; track scatter.xColumn + scatter.yColumn) {
+            <div class="analytics-card">
+              <h4>{{ scatter.xColumn }} vs {{ scatter.yColumn }}</h4>
+              <p class="meta">
+                correlation: {{ scatter.correlation === null ? '—' : scatter.correlation.toFixed(2) }}
+                @if (scatter.sampled) {
+                  · showing a sample of {{ scatter.sampleSize }} of {{ scatter.totalPoints }} points
+                }
+              </p>
+              <div class="chart-box chart-box--wide">
+                <div class="chart-canvas-wrapper">
+                  <app-chart-canvas [config]="scatterConfig(scatter)" />
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    } @else if (analytics.status === 'failed') {
+      <p class="error">{{ analytics.errorMessage }}</p>
+    } @else if (analytics.status === 'running' || analytics.status === 'pending') {
+      <p>Analytics in progress…</p>
+    }
+  }
+</section>

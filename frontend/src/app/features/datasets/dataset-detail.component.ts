@@ -1,54 +1,33 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ChartConfiguration } from 'chart.js';
 
 import { ApiError } from '../../core/api-error';
 import { DatasetService } from '../../core/dataset.service';
 import {
   Analysis,
   AnalyticsResult,
-  BarChart,
   CleaningOperation,
   CleaningPreviewResult,
   CleaningRecommendation,
   CleaningResult,
   Dataset,
-  HistogramChart,
-  ScatterChart,
-  TimeSeriesChart,
+  DatasetVersionSummary,
 } from '../../core/models';
-import { BoxplotChartComponent } from '../../shared/boxplot-chart.component';
-import { ChartCanvasComponent } from '../../shared/chart-canvas.component';
-import { CorrelationMatrixComponent } from '../../shared/correlation-matrix.component';
-import { buildBarConfig, buildHistogramConfig, buildScatterConfig, buildTimeSeriesConfig } from './analytics-chart-builder';
-
-const NON_ACTIONABLE_ACTIONS = new Set(['review']);
-const ACTIONS_REQUIRING_EXTRA_INPUT = new Set(['fill_constant']);
-
-const ACTION_LABELS: Record<string, string> = {
-  drop_rows: 'Drop rows',
-  fill_constant: 'Fill with a value',
-  fill_mean: 'Fill mean',
-  fill_median: 'Fill median',
-  fill_mode: 'Fill mode',
-  remove_duplicate_rows: 'Remove duplicates',
-  trim_whitespace: 'Trim',
-  normalize_internal_whitespace: 'Normalize whitespace',
-  convert_to_integer: 'Convert to integer',
-  convert_to_float: 'Convert to float',
-  convert_to_date: 'Convert to date',
-  convert_to_datetime: 'Convert to datetime',
-  drop_column: 'Drop column',
-  remove_iqr_outliers: 'Remove outliers',
-  review: 'Review',
-};
-
-const OPERATION_LABELS: Record<string, string> = ACTION_LABELS;
+import { FileSizePipe } from '../../shared/file-size.pipe';
+import { AnalyticsSectionComponent } from './sections/analytics-section.component';
+import { CleaningSectionComponent } from './sections/cleaning-section.component';
+import { ProfileSectionComponent } from './sections/profile-section.component';
 
 @Component({
   selector: 'app-dataset-detail',
   standalone: true,
-  imports: [RouterLink, ChartCanvasComponent, BoxplotChartComponent, CorrelationMatrixComponent],
+  imports: [
+    RouterLink,
+    FileSizePipe,
+    ProfileSectionComponent,
+    CleaningSectionComponent,
+    AnalyticsSectionComponent,
+  ],
   templateUrl: './dataset-detail.component.html',
   styleUrl: './dataset-detail.component.scss',
 })
@@ -59,6 +38,11 @@ export class DatasetDetailComponent implements OnInit {
   protected dataset = signal<Dataset | null>(null);
   protected loading = signal(true);
   protected loadError = signal<string | null>(null);
+
+  protected currentVersion = computed<DatasetVersionSummary | null>(() => {
+    const ds = this.dataset();
+    return ds && ds.versions.length > 0 ? ds.versions[0] : null;
+  });
 
   protected analysis = signal<Analysis | null>(null);
   protected analyzing = signal(false);
@@ -103,7 +87,7 @@ export class DatasetDetailComponent implements OnInit {
 
   analyze(force = false): void {
     const dataset = this.dataset();
-    const version = dataset?.versions[0];
+    const version = this.currentVersion();
     if (!dataset || !version || this.analyzing()) {
       return;
     }
@@ -130,19 +114,6 @@ export class DatasetDetailComponent implements OnInit {
     return this.selectedOperations().some((op) => op.type === type && op.column === column);
   }
 
-  isActionable(action: string): boolean {
-    return !NON_ACTIONABLE_ACTIONS.has(action) && !ACTIONS_REQUIRING_EXTRA_INPUT.has(action);
-  }
-
-  actionLabel(action: string): string {
-    return ACTION_LABELS[action] ?? action;
-  }
-
-  operationLabel(operation: CleaningOperation): string {
-    const label = OPERATION_LABELS[operation.type] ?? operation.type;
-    return operation.column ? `${label} — ${operation.column}` : label;
-  }
-
   toggleOperation(type: string, column?: string): void {
     if (this.isSelected(type, column)) {
       this.selectedOperations.update((ops) => ops.filter((op) => !(op.type === type && op.column === column)));
@@ -161,7 +132,7 @@ export class DatasetDetailComponent implements OnInit {
 
   preview(): void {
     const dataset = this.dataset();
-    const version = dataset?.versions[0];
+    const version = this.currentVersion();
     const operations = this.selectedOperations();
     if (!dataset || !version || operations.length === 0 || this.previewing()) {
       return;
@@ -184,7 +155,7 @@ export class DatasetDetailComponent implements OnInit {
 
   applyCleaning(): void {
     const dataset = this.dataset();
-    const version = dataset?.versions[0];
+    const version = this.currentVersion();
     const operations = this.selectedOperations();
     if (!dataset || !version || operations.length === 0 || this.applying()) {
       return;
@@ -211,8 +182,6 @@ export class DatasetDetailComponent implements OnInit {
       return;
     }
 
-    // The new version is now dataset.versions[0] once we reload — simplest
-    // way to "view" it with this phase's single-version-focused detail page.
     this.loading.set(true);
     this.cleaningResult.set(null);
     this.selectedOperations.set([]);
@@ -238,7 +207,7 @@ export class DatasetDetailComponent implements OnInit {
 
   runAnalytics(force = false): void {
     const dataset = this.dataset();
-    const version = dataset?.versions[0];
+    const version = this.currentVersion();
     if (!dataset || !version || this.runningAnalytics()) {
       return;
     }
@@ -261,22 +230,6 @@ export class DatasetDetailComponent implements OnInit {
     });
   }
 
-  histogramConfig(chart: HistogramChart): ChartConfiguration {
-    return buildHistogramConfig(chart);
-  }
-
-  barConfig(chart: BarChart): ChartConfiguration {
-    return buildBarConfig(chart);
-  }
-
-  timeSeriesConfig(chart: TimeSeriesChart): ChartConfiguration {
-    return buildTimeSeriesConfig(chart);
-  }
-
-  scatterConfig(chart: ScatterChart): ChartConfiguration {
-    return buildScatterConfig(chart);
-  }
-
   private loadExistingAnalytics(dataset: Dataset): void {
     const version = dataset.versions[0];
     if (!version) {
@@ -286,7 +239,7 @@ export class DatasetDetailComponent implements OnInit {
     this.datasetService.getAnalytics(dataset.id, version.id).subscribe({
       next: (analysis) => this.analyticsAnalysis.set(analysis),
       error: () => {
-        // No analytics run yet — not an error state worth surfacing here.
+        // No analytics run yet
       },
     });
   }
@@ -305,7 +258,7 @@ export class DatasetDetailComponent implements OnInit {
         }
       },
       error: () => {
-        // No profile yet — not an error state worth surfacing here.
+        // No profile yet
       },
     });
   }
