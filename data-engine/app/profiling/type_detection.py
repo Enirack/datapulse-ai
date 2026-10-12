@@ -25,6 +25,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from app.profiling.contract import BusinessType
+
 CATEGORICAL_MAX_UNIQUE_RATIO = 0.5
 CATEGORICAL_MAX_UNIQUE_COUNT = 50
 DATE_SAMPLE_SIZE = 100
@@ -41,9 +43,6 @@ _DATE_PATTERNS = [
 _DATETIME_PATTERNS = [
     re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$"),  # ISO 8601
 ]
-
-
-from app.profiling.contract import BusinessType
 
 
 @dataclass
