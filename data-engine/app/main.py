@@ -4,12 +4,14 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.profiling.errors import ProfilingError
+from app.routers.analytics import router as analytics_router
 from app.routers.clean import router as clean_router
 from app.routers.profile import router as profile_router
 
 app = FastAPI(title="DataPulse AI - Data Engine")
 app.include_router(profile_router)
 app.include_router(clean_router)
+app.include_router(analytics_router)
 
 
 @app.get("/health")

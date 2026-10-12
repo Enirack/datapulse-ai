@@ -29,5 +29,23 @@ class Settings(BaseSettings):
 
     profile_schema_version: str = "1.0"
 
+    analytics_schema_version: str = "1.0"
+
+    # Histogram bin count is capped, not fixed — a low-cardinality numeric
+    # column (e.g. 1..5) gets fewer bins than this rather than empty ones.
+    histogram_max_bins: int = 20
+
+    # Correlation matrix columns are capped (first N in original column
+    # order) so an O(n^2) matrix never grows unbounded on a wide dataset.
+    max_correlation_columns: int = 15
+
+    # How many of the strongest-correlated numeric pairs get a scatter chart.
+    max_scatter_pairs: int = 5
+
+    # Points drawn per scatter chart — beyond this, points are sampled
+    # (see app/analytics/scatter.py) for chart legibility, never to alter
+    # what the underlying dataset actually contains.
+    max_scatter_points: int = 500
+
 
 settings = Settings()
