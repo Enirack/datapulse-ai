@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Presentation\UserPresenter;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\Exception\JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -31,7 +32,7 @@ final class AuthController
     {
         try {
             $payload = $request->toArray();
-        } catch (\JsonException) {
+        } catch (JsonException) {
             return new JsonResponse(['status' => 'error', 'message' => 'Invalid JSON body.'], 400);
         }
 

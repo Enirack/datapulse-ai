@@ -67,6 +67,24 @@ final class CleaningControllerTest extends ApiTestCase
         self::assertResponseStatusCodeSame(400); // missing required "column"
     }
 
+    public function testMalformedJsonBodyReturns400(): void
+    {
+        $client = static::createClient();
+        $token = $this->createAuthenticatedUser($client);
+        [$datasetId, $versionId] = $this->uploadDataset($client, $token);
+
+        $client->request(
+            'POST',
+            "/api/datasets/{$datasetId}/versions/{$versionId}/clean",
+            server: array_merge($this->authHeaders($token), ['CONTENT_TYPE' => 'application/json']),
+            content: '{not valid json',
+        );
+
+        self::assertResponseStatusCodeSame(400);
+        $data = json_decode($client->getResponse()->getContent(), true, \JSON_THROW_ON_ERROR);
+        self::assertSame('Invalid JSON body.', $data['message']);
+    }
+
     public function testValidPipelineCreatesNewVersionWithCorrectLineageAndChecksum(): void
     {
         $client = static::createClient();

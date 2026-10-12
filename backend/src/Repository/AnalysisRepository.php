@@ -6,7 +6,6 @@ namespace App\Repository;
 
 use App\Entity\Analysis;
 use App\Entity\DatasetVersion;
-use App\Enum\AnalysisType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -33,14 +32,20 @@ class AnalysisRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    public function findByPipelineFingerprint(DatasetVersion $sourceVersion, string $fingerprint): ?Analysis
+    /**
+     * Generic fingerprint lookup — used by both cleaning (pipeline
+     * fingerprint) and analytics (configuration fingerprint), since both
+     * reuse Analysis::$pipelineFingerprint as a generic "fingerprint of
+     * what was requested" column.
+     */
+    public function findByFingerprint(DatasetVersion $sourceVersion, string $type, string $fingerprint): ?Analysis
     {
         return $this->createQueryBuilder('a')
             ->andWhere('a.datasetVersion = :version')
             ->andWhere('a.type = :type')
             ->andWhere('a.pipelineFingerprint = :fingerprint')
             ->setParameter('version', $sourceVersion)
-            ->setParameter('type', AnalysisType::Cleaning->value)
+            ->setParameter('type', $type)
             ->setParameter('fingerprint', $fingerprint)
             ->orderBy('a.createdAt', 'DESC')
             ->setMaxResults(1)

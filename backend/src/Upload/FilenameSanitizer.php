@@ -38,6 +38,9 @@ final class FilenameSanitizer
         return mb_substr($clean, 0, 255);
     }
 
+    /**
+     * @return 'csv'|'xlsx'|'json'
+     */
     public function extractExtension(string $sanitizedFilename): string
     {
         $extension = strtolower(pathinfo($sanitizedFilename, PATHINFO_EXTENSION));

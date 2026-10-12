@@ -16,6 +16,7 @@ use App\Profiling\DataEngineException;
 use App\Repository\AnalysisRepository;
 use App\Security\DatasetAccessGuard;
 use App\Service\CleaningService;
+use Symfony\Component\HttpFoundation\Exception\JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -102,7 +103,7 @@ final class CleaningController
     {
         try {
             $payload = $request->toArray();
-        } catch (\JsonException) {
+        } catch (JsonException) {
             throw new PipelineValidationException('Invalid JSON body.');
         }
 

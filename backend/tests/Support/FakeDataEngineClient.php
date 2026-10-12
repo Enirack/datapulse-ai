@@ -31,11 +31,18 @@ final class FakeDataEngineClient implements DataEngineClientInterface
     /** @var array<string, mixed>|null */
     private ?array $nextPreviewResult = null;
 
+    /** @var array<string, mixed>|null */
+    private ?array $nextAnalyticsResult = null;
+    private ?DataEngineException $nextAnalyticsFailure = null;
+
     /** @var list<array{datasetVersionId: string, storageIdentifier: string, extension: string}> */
     private array $calls = [];
 
     /** @var list<array{datasetVersionId: string, storageIdentifier: string, extension: string, operations: mixed}> */
     private array $cleanCalls = [];
+
+    /** @var list<array{datasetVersionId: string, storageIdentifier: string, extension: string}> */
+    private array $analyticsCalls = [];
 
     public function __construct(private readonly string $tmpDir)
     {
@@ -108,6 +115,21 @@ final class FakeDataEngineClient implements DataEngineClientInterface
         $this->nextPreviewResult = $result;
     }
 
+    /**
+     * @param array<string, mixed> $result
+     */
+    public function willAnalyzeReturn(array $result): void
+    {
+        $this->nextAnalyticsResult = $result;
+        $this->nextAnalyticsFailure = null;
+    }
+
+    public function willAnalyzeFail(int $statusCode, string $message): void
+    {
+        $this->nextAnalyticsFailure = DataEngineException::fromResponse($statusCode, $message);
+        $this->nextAnalyticsResult = null;
+    }
+
     public function reset(): void
     {
         $this->nextSuccessResult = null;
@@ -115,8 +137,11 @@ final class FakeDataEngineClient implements DataEngineClientInterface
         $this->nextCleanResult = null;
         $this->nextCleanFailure = null;
         $this->nextPreviewResult = null;
+        $this->nextAnalyticsResult = null;
+        $this->nextAnalyticsFailure = null;
         $this->calls = [];
         $this->cleanCalls = [];
+        $this->analyticsCalls = [];
     }
 
     public function callCount(): int
@@ -127,6 +152,11 @@ final class FakeDataEngineClient implements DataEngineClientInterface
     public function cleanCallCount(): int
     {
         return \count($this->cleanCalls);
+    }
+
+    public function analyticsCallCount(): int
+    {
+        return \count($this->analyticsCalls);
     }
 
     public function profile(string $datasetVersionId, string $storageIdentifier, string $extension): array
@@ -168,6 +198,21 @@ final class FakeDataEngineClient implements DataEngineClientInterface
             'before' => ['rows' => 0, 'columns' => 0],
             'after' => ['rows' => 0, 'columns' => 0],
         ];
+    }
+
+    public function analyze(string $datasetVersionId, string $storageIdentifier, string $extension): array
+    {
+        $this->analyticsCalls[] = [
+            'datasetVersionId' => $datasetVersionId,
+            'storageIdentifier' => $storageIdentifier,
+            'extension' => $extension,
+        ];
+
+        if ($this->nextAnalyticsFailure !== null) {
+            throw $this->nextAnalyticsFailure;
+        }
+
+        return $this->nextAnalyticsResult ?? $this->defaultAnalyticsResult();
     }
 
     private function writeTempFile(string $content, string $extension): string
@@ -233,6 +278,53 @@ final class FakeDataEngineClient implements DataEngineClientInterface
                 'before' => ['rows' => 0, 'columns' => 0],
                 'after' => ['rows' => 0, 'columns' => 0],
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultAnalyticsResult(): array
+    {
+        return [
+            'schemaVersion' => '1.0',
+            'dataset' => [
+                'rows' => 3,
+                'columns' => 1,
+                'totalCells' => 3,
+                'totalNullCells' => 0,
+                'nullPercentage' => 0.0,
+                'duplicateRowCount' => 0,
+                'duplicateRowPercentage' => 0.0,
+            ],
+            'summary' => [
+                'numericColumnCount' => 1,
+                'categoricalColumnCount' => 0,
+                'temporalColumnCount' => 0,
+                'unanalyzedColumnCount' => 0,
+                'chartCount' => 2,
+            ],
+            'numeric' => [
+                [
+                    'column' => 'value',
+                    'statistics' => [
+                        'count' => 3, 'missingCount' => 0, 'missingPercentage' => 0.0, 'uniqueCount' => 3,
+                        'min' => 1.0, 'max' => 3.0, 'mean' => 2.0, 'median' => 2.0,
+                        'standardDeviation' => 1.0, 'variance' => 1.0, 'q1' => 1.5, 'q3' => 2.5, 'iqr' => 1.0,
+                        'sum' => 6.0, 'range' => 2.0,
+                    ],
+                    'histogram' => ['type' => 'histogram', 'column' => 'value', 'bins' => [1.0, 2.0, 3.0], 'counts' => [1, 2]],
+                    'boxplot' => [
+                        'type' => 'boxplot', 'column' => 'value', 'min' => 1.0, 'q1' => 1.5, 'median' => 2.0,
+                        'q3' => 2.5, 'max' => 3.0, 'lowerFence' => 0.0, 'upperFence' => 4.0, 'outlierCount' => 0,
+                    ],
+                ],
+            ],
+            'categorical' => [],
+            'temporal' => [],
+            'correlations' => null,
+            'scatter' => [],
+            'charts' => [],
         ];
     }
 }

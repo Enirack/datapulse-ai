@@ -26,9 +26,4 @@ final class DataEngineException extends \RuntimeException
     {
         return new self('Unable to reach the data engine.', 502);
     }
-
-    public static function unexpectedResponse(): self
-    {
-        return new self('The data engine returned an unexpected response.', 502);
-    }
 }

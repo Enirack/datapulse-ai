@@ -59,6 +59,9 @@
             "./config/packages/nelmio_cors.yaml"
         ]
     },
+    "phpstan/phpstan": {
+        "version": "2.2.13"
+    },
     "phpunit/phpunit": {
         "version": "13.3",
         "recipe": {

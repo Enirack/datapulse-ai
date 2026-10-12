@@ -49,6 +49,22 @@ final class AuthControllerTest extends ApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
+    public function testRegisterRejectsMalformedJsonBodyWith400(): void
+    {
+        $client = static::createClient();
+
+        $client->request(
+            'POST',
+            '/api/auth/register',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: '{not valid json',
+        );
+
+        self::assertResponseStatusCodeSame(400);
+        $data = json_decode($client->getResponse()->getContent(), true, \JSON_THROW_ON_ERROR);
+        self::assertSame('Invalid JSON body.', $data['message']);
+    }
+
     public function testLoginReturnsJwtToken(): void
     {
         $client = static::createClient();

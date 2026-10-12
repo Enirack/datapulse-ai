@@ -59,7 +59,7 @@ final class CleaningService
         $fingerprint = $this->pipelineParser->fingerprint($operations, $sourceVersion->getChecksum());
 
         if (!$force) {
-            $existing = $this->analysisRepository->findByPipelineFingerprint($sourceVersion, $fingerprint);
+            $existing = $this->analysisRepository->findByFingerprint($sourceVersion, AnalysisType::Cleaning->value, $fingerprint);
             if ($existing !== null && $existing->getStatus() === AnalysisStatus::Completed) {
                 return $existing;
             }

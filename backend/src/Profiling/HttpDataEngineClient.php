@@ -51,6 +51,15 @@ final class HttpDataEngineClient implements DataEngineClientInterface
         ], timeout: 60);
     }
 
+    public function analyze(string $datasetVersionId, string $storageIdentifier, string $extension): array
+    {
+        return $this->request('/internal/analytics', [
+            'datasetVersionId' => $datasetVersionId,
+            'storageIdentifier' => $storageIdentifier,
+            'extension' => $extension,
+        ], timeout: 60);
+    }
+
     /**
      * @param array<string, mixed> $payload
      *
@@ -71,15 +80,11 @@ final class HttpDataEngineClient implements DataEngineClientInterface
         }
 
         if ($statusCode < 200 || $statusCode >= 300) {
-            $message = \is_array($content) && \is_string($content['message'] ?? null)
-                ? $content['message']
-                : 'Data engine returned an error.';
+            // toArray() always returns an array (or throws) per its
+            // contract — no separate is_array() guard needed here.
+            $message = \is_string($content['message'] ?? null) ? $content['message'] : 'Data engine returned an error.';
 
             throw DataEngineException::fromResponse($statusCode, $message);
-        }
-
-        if (!\is_array($content)) {
-            throw DataEngineException::unexpectedResponse();
         }
 
         return $content;

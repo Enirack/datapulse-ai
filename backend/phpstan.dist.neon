@@ -1,0 +1,23 @@
+includes:
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+
+parameters:
+    # Level 5 catches real bugs (wrong argument types, undefined methods,
+    # dead conditions) without demanding full generic-array typing
+    # (levels 6-9) across four phases of already-shipped, tested business
+    # logic. Introduced progressively — see docs/development.md
+    # "Static analysis" for the plan to raise it.
+    level: 5
+
+    paths:
+        - src
+
+    symfony:
+        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+
+    doctrine:
+        objectManagerLoader: tests/phpstan/object-manager.php
+
+    excludePaths:
+        - src/Kernel.php

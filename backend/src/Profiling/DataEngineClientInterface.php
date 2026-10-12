@@ -45,4 +45,17 @@ interface DataEngineClientInterface
      * @throws DataEngineException on any non-2xx response or transport failure
      */
     public function previewClean(string $datasetVersionId, string $storageIdentifier, string $extension, array $operations): array;
+
+    /**
+     * Runs the full analytics engine (numeric/categorical/temporal
+     * analysis, correlations, chart-ready data) against a dataset
+     * version's stored file. Read-only — never writes anything, unlike
+     * clean().
+     *
+     * @return array<string, mixed> the decoded analytics result (matches
+     *                               the contract documented in docs/data-analytics.md)
+     *
+     * @throws DataEngineException on any non-2xx response or transport failure
+     */
+    public function analyze(string $datasetVersionId, string $storageIdentifier, string $extension): array;
 }
