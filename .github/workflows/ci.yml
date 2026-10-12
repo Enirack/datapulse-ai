@@ -7,7 +7,7 @@ on:
 
 jobs:
   backend:
-    name: Backend (Symfony / PHPUnit)
+    name: Backend (Symfony / PHPUnit / PHPStan)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -49,11 +49,14 @@ jobs:
           php bin/console doctrine:database:create --env=test --if-not-exists
           php bin/console doctrine:migrations:migrate --env=test --no-interaction
 
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --no-progress
+
       - name: Run PHPUnit
         run: php bin/phpunit
 
   data-engine:
-    name: Data engine (FastAPI / pytest)
+    name: Data engine (FastAPI / pytest / ruff / mypy)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -69,11 +72,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Type check with mypy
+        run: mypy app/
+
       - name: Run pytest
         run: pytest
 
   frontend:
-    name: Frontend (Angular / Vitest)
+    name: Frontend (Angular / Vitest / ESLint)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -90,6 +99,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
 
       - name: Run unit tests
         run: npx ng test --watch=false
