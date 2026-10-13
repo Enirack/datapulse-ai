@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Tests\Support\ApiTestCase;
 use App\Tests\Support\FixtureFiles;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 
 final class AiAnalystControllerTest extends ApiTestCase
 {
