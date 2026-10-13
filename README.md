@@ -1,5 +1,7 @@
 # DataPulse AI
 
+[![CI](https://github.com/Enirack/datapulse-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Enirack/datapulse-ai/actions/workflows/ci.yml)
+
 An AI-powered data analytics platform. Users upload tabular datasets (CSV, XLSX, JSON) and the platform turns them into deterministic, structured business intelligence — profiling, cleaning, statistics, anomaly detection, and visualizations — which an AI layer then interprets and explains in natural language. The AI never performs the analysis itself; it only reasons over structured, computed results, and every number a user sees traces back to an actual computation.
 
 This is not a chatbot wrapper. It's a real data-processing pipeline with an AI layer on top.
