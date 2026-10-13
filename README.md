@@ -69,39 +69,51 @@ Full setup (including running each service natively without Docker), environment
 
 Voici un tour d'horizon des interfaces clés de la plateforme DataPulse AI :
 
-### 1. Tableau de bord & Présentation du système
-Vue d'accueil guidant l'utilisateur sur le flux d'analyse et les capacités de la plateforme.
+### 1. Command Center Dashboard & KPIs
+Vue d'accueil moderne avec indicateurs clés (KPIs), tableau réactif des datasets récents et schéma des 5 étapes du pipeline de traitement.
 ![Dashboard](docs/screenshots/01-dashboard.png)
 
 ---
 
-### 2. Authentification sécurisée (JWT)
-Connexion et enregistrement avec validation stricte, stockage sécurisé du token et retours d'erreurs en temps réel.
+### 2. Thème Sombre & Design System (Dark Mode)
+Basculement instantané entre mode clair et mode sombre sans scintillement, géré par le `ThemeService` avec persistance `localStorage` et tokens CSS.
+![Dark Mode Dashboard](docs/screenshots/08-dark-mode-dashboard.png)
+
+---
+
+### 3. Authentification sécurisée (JWT)
+Connexion et inscription par carte stylisée avec validation réactive, stockage sécurisé du token et retours d'erreurs en temps réel.
 ![Login](docs/screenshots/02-login.png)
 
 ---
 
-### 3. Gestion et Ingestion des Datasets
-Catalogue des jeux de données téléversés, zone de dépôt (CSV, XLSX, JSON), badge de sécurité contre l'injection de formules et formatage intelligent des tailles de fichiers (`FileSizePipe`).
+### 4. Datasets Explorer & Recherche instantanée
+Catalogue dynamique avec filtrage de recherche en direct, zone d'ingestion moderne (CSV, XLSX, JSON), badge de sécurité anti-injection de formules et skeleton loaders.
 ![Datasets List](docs/screenshots/03-dataset-list.png)
 
 ---
 
-### 4. Data Profiling & Analyse des colonnes
-Calcul déterministe en un clic : détection des types métiers (integer, float, categorical, date...), volumétrie, complétude, cellules nulles, unicité et statistiques de dispersion (min, max, moyenne).
+### 5. Data Profiling déterministe
+Calcul déterministe en un clic : détection des types métiers (integer, float, categorical, date...), volumétrie, complétude, cellules nulles, unicité et statistiques de dispersion.
 ![Data Profiling](docs/screenshots/04-data-profiling.png)
 
 ---
 
-### 5. Recommandations de nettoyage & Prévisualisation interactive
+### 6. Recommandations de nettoyage & Prévisualisation interactive
 Détection proactive d'anomalies (doublons, valeurs manquantes, espaces parasites, outliers IQR). L'utilisateur sélectionne ses opérations et lance un calcul de prévisualisation (avant/après) avant d'appliquer les transformations de manière non destructive.
 ![Data Cleaning](docs/screenshots/05-data-cleaning.png)
 
 ---
 
-### 6. Analytics avancés & Visualisations interactives (Chart.js)
-Génération automatisée d'analyses statistiques approfondies : histogrammes avec pas optimisés, boxplots SVG de distribution, graphiques catégoriels en barres, séries chronologiques agrégées par granularité, matrices de corrélation de Pearson et nuages de points relationnels échantillonnés.
+### 7. Analytics avancés & Visualisations interactives (Chart.js)
+Génération automatisée d'analyses statistiques approfondies : histogrammes optimisés, boxplots SVG de distribution, graphiques catégoriels en barres, séries chronologiques agrégées, matrices de corrélation de Pearson et nuages de points relationnels.
 ![Analytics & Visualisations](docs/screenshots/06-analytics-visualizations.png)
+
+---
+
+### 8. AI Data Analyst & Q&A Groundé (Zéro Hallucination)
+Synthèse exécutive automatisée, jauge de score d'hygiène (0-100), cartes d'insights catégorisées (`computed_fact`, `statistical_interpretation`, `recommendation`) et questions-réponses interactives ancrées dans les métriques réelles.
+![AI Data Analyst](docs/screenshots/07-ai-analyst.png)
 
 ---
 
