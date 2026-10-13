@@ -117,7 +117,7 @@ final class AiAnalystControllerTest extends ApiTestCase
             'POST',
             '/api/datasets',
             parameters: ['name' => $filename],
-            files: ['file' => FixtureFiles::smallCsv($filename)],
+            files: ['file' => FixtureFiles::csv("a,b\n1,2\n3,4\n", $filename)],
             server: $this->authHeaders($token),
         );
 
