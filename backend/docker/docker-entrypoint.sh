@@ -9,4 +9,10 @@ fi
 
 mkdir -p var/storage/datasets
 
+# Auto-run database migrations on container startup if enabled
+if [ "${AUTO_MIGRATE:-1}" = "1" ]; then
+    echo "Running database migrations..."
+    php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration || true
+fi
+
 exec "$@"
