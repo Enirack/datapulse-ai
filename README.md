@@ -65,6 +65,46 @@ docker compose exec backend php bin/console doctrine:migrations:migrate --no-int
 
 Full setup (including running each service natively without Docker), environment variables, and Docker command reference: [`docs/development.md`](docs/development.md).
 
+## Interface & Aperçu visuel
+
+Voici un tour d'horizon des interfaces clés de la plateforme DataPulse AI :
+
+### 1. Tableau de bord & Présentation du système
+Vue d'accueil guidant l'utilisateur sur le flux d'analyse et les capacités de la plateforme.
+![Dashboard](docs/screenshots/01-dashboard.png)
+
+---
+
+### 2. Authentification sécurisée (JWT)
+Connexion et enregistrement avec validation stricte, stockage sécurisé du token et retours d'erreurs en temps réel.
+![Login](docs/screenshots/02-login.png)
+
+---
+
+### 3. Gestion et Ingestion des Datasets
+Catalogue des jeux de données téléversés, zone de dépôt (CSV, XLSX, JSON), badge de sécurité contre l'injection de formules et formatage intelligent des tailles de fichiers (`FileSizePipe`).
+![Datasets List](docs/screenshots/03-dataset-list.png)
+
+---
+
+### 4. Data Profiling & Analyse des colonnes
+Calcul déterministe en un clic : détection des types métiers (integer, float, categorical, date...), volumétrie, complétude, cellules nulles, unicité et statistiques de dispersion (min, max, moyenne).
+![Data Profiling](docs/screenshots/04-data-profiling.png)
+
+---
+
+### 5. Recommandations de nettoyage & Prévisualisation interactive
+Détection proactive d'anomalies (doublons, valeurs manquantes, espaces parasites, outliers IQR). L'utilisateur sélectionne ses opérations et lance un calcul de prévisualisation (avant/après) avant d'appliquer les transformations de manière non destructive.
+![Data Cleaning](docs/screenshots/05-data-cleaning.png)
+
+---
+
+### 6. Analytics avancés & Visualisations interactives (Chart.js)
+Génération automatisée d'analyses statistiques approfondies : histogrammes avec pas optimisés, boxplots SVG de distribution, graphiques catégoriels en barres, séries chronologiques agrégées par granularité, matrices de corrélation de Pearson et nuages de points relationnels échantillonnés.
+![Analytics & Visualisations](docs/screenshots/06-analytics-visualizations.png)
+
+---
+
 ## Development phases
 
 This project is built incrementally, one phase at a time, never skipping ahead:
