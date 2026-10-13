@@ -24,4 +24,17 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.app-shell__brand')?.textContent).toContain('DataPulse AI');
   });
+
+  it('should toggle theme when theme toggle button is clicked', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const btn = fixture.nativeElement.querySelector('.theme-toggle') as HTMLButtonElement;
+    expect(btn).not.toBeNull();
+    btn.click();
+    fixture.detectChanges();
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    btn.click();
+    fixture.detectChanges();
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
 });

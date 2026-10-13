@@ -1,27 +1,39 @@
-<a routerLink="/datasets" class="back-link">← Back to datasets</a>
+<div class="nav-bar-top">
+  <a routerLink="/datasets" class="back-link">← Back to Datasets</a>
+</div>
 
 @if (loading()) {
-  <p>Loading…</p>
+  <div class="loading-container">
+    <app-skeleton-loader variant="card" [count]="3" />
+  </div>
 } @else if (loadError(); as message) {
-  <p class="error">{{ message }}</p>
+  <div class="alert alert--error">{{ message }}</div>
 } @else if (dataset(); as currentDataset) {
   <section class="dataset-detail">
-    <h1>{{ currentDataset.name }}</h1>
-    @if (currentDataset.description) {
-      <p class="description">{{ currentDataset.description }}</p>
-    }
-
-    <dl class="summary">
-      <div><dt>Status</dt><dd>{{ currentDataset.status }}</dd></div>
-      @if (currentVersion(); as version) {
-        <div><dt>File</dt><dd>{{ version.originalFilename }}</dd></div>
-        <div><dt>Size</dt><dd>{{ version.fileSize | fileSize }}</dd></div>
-        <div><dt>Checksum</dt><dd class="mono">{{ version.checksum.slice(0, 16) }}…</dd></div>
-        @if (version.hasFormulaInjectionRisk) {
-          <div class="warning"><dt>⚠</dt><dd>Possible spreadsheet formula content detected</dd></div>
+    <div class="dataset-header-card">
+      <div class="header-main">
+        <div class="title-row">
+          <h1>{{ currentDataset.name }}</h1>
+          <span class="badge-status" [class]="'badge-status--' + currentDataset.status">
+            {{ currentDataset.status }}
+          </span>
+        </div>
+        @if (currentDataset.description) {
+          <p class="description">{{ currentDataset.description }}</p>
         }
-      }
-    </dl>
+      </div>
+
+      <dl class="summary">
+        @if (currentVersion(); as version) {
+          <div class="summary-item"><dt>Original File</dt><dd>{{ version.originalFilename }}</dd></div>
+          <div class="summary-item"><dt>File Size</dt><dd>{{ version.fileSize | fileSize }}</dd></div>
+          <div class="summary-item"><dt>SHA256 Checksum</dt><dd class="mono">{{ version.checksum.slice(0, 16) }}…</dd></div>
+          @if (version.hasFormulaInjectionRisk) {
+            <div class="summary-item warning"><dt>⚠ Security</dt><dd>Formula injection risk detected</dd></div>
+          }
+        }
+      </dl>
+    </div>
 
     <app-profile-section
       [analysis]="analysis()"

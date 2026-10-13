@@ -1,15 +1,18 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { ApiError } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { DatasetService } from '../../core/dataset.service';
 import { Dataset } from '../../core/models';
+import { FileSizePipe } from '../../shared/file-size.pipe';
+import { SkeletonLoaderComponent } from '../../shared/skeleton-loader.component';
 
 @Component({
   selector: 'app-dataset-list',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, FormsModule, FileSizePipe, SkeletonLoaderComponent],
   templateUrl: './dataset-list.component.html',
   styleUrl: './dataset-list.component.scss',
 })
@@ -22,6 +25,21 @@ export class DatasetListComponent implements OnInit {
   protected errorMessage = signal<string | null>(null);
   protected uploading = signal(false);
   protected selectedFile: File | null = null;
+  protected searchQuery = signal<string>('');
+
+  protected readonly filteredDatasets = computed<Dataset[]>(() => {
+    const query = this.searchQuery().toLowerCase().trim();
+    const list = this.datasets();
+    if (!query) {
+      return list;
+    }
+    return list.filter((ds) => {
+      const matchName = ds.name.toLowerCase().includes(query);
+      const matchFile = ds.versions[0]?.originalFilename.toLowerCase().includes(query) ?? false;
+      const matchDesc = ds.description?.toLowerCase().includes(query) ?? false;
+      return matchName || matchFile || matchDesc;
+    });
+  });
 
   ngOnInit(): void {
     this.refresh();

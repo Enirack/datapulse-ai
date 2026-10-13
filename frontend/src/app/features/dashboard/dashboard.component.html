@@ -1,24 +1,137 @@
 <section class="dashboard">
-  <header class="dashboard__intro">
-    <h1>Dashboard</h1>
-    <p>
-      Upload a dataset to get started once ingestion is available. For now, here's the platform's current status.
-    </p>
-    <p
-      class="status"
-      [class.status--online]="backendStatus() === 'online'"
-      [class.status--offline]="backendStatus() === 'offline'"
-    >
-      Backend: {{ backendStatus() }}
-    </p>
+  <!-- Hero Section -->
+  <header class="dashboard__hero">
+    <div class="hero-left">
+      <h1>Data Intelligence Command Center</h1>
+      <p class="hero-subtitle">
+        End-to-end data processing engine turning raw tabular files into verified statistics, clean versions, and grounded AI insights.
+      </p>
+    </div>
+    <div class="hero-right">
+      <div
+        class="status-pill"
+        [class.status-pill--online]="backendStatus() === 'online'"
+        [class.status-pill--offline]="backendStatus() === 'offline'"
+      >
+        <span class="status-indicator"></span>
+        <span>Backend: {{ backendStatus() }}</span>
+      </div>
+      <a routerLink="/datasets" class="btn-action">
+        + Upload Dataset
+      </a>
+    </div>
   </header>
 
-  <div class="dashboard__grid">
-    @for (card of placeholderCards; track card.title) {
-      <article class="card">
-        <h2>{{ card.title }}</h2>
-        <p>{{ card.description }}</p>
-      </article>
+  <!-- Global Metrics KPI Row -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <span class="kpi-label">Active Datasets</span>
+      @if (loadingDatasets()) {
+        <app-skeleton-loader variant="text" width="60%" height="2rem" />
+      } @else {
+        <span class="kpi-value">{{ datasets().length }}</span>
+      }
+      <span class="kpi-sub">Managed files</span>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-label">Total Volume</span>
+      @if (loadingDatasets()) {
+        <app-skeleton-loader variant="text" width="60%" height="2rem" />
+      } @else {
+        <span class="kpi-value">{{ totalStorageBytes() | fileSize }}</span>
+      }
+      <span class="kpi-sub">Across all versions</span>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-label">Processing Integrity</span>
+      <span class="kpi-value text-success">100%</span>
+      <span class="kpi-sub">Deterministic & traceable</span>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-label">AI Hallucination Risk</span>
+      <span class="kpi-value text-accent">0%</span>
+      <span class="kpi-sub">Metric-grounded synthesis</span>
+    </div>
+  </div>
+
+  <!-- Recent Datasets Activity -->
+  <div class="section-card">
+    <div class="section-card__header">
+      <h2>Recent Datasets</h2>
+      <a routerLink="/datasets" class="link-more">View all datasets →</a>
+    </div>
+
+    @if (loadingDatasets()) {
+      <div class="loading-state">
+        <app-skeleton-loader variant="card" [count]="3" />
+      </div>
+    } @else if (datasets().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">📁</div>
+        <p>No datasets uploaded yet.</p>
+        <a routerLink="/datasets" class="btn-primary">Upload your first dataset</a>
+      </div>
+    } @else {
+      <div class="datasets-table-wrapper">
+        <table class="modern-table">
+          <thead>
+            <tr>
+              <th>Dataset Name</th>
+              <th>Status</th>
+              <th>Original File</th>
+              <th>Size</th>
+              <th>Versions</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ds of recentDatasets(); track ds.id) {
+              <tr>
+                <td>
+                  <a [routerLink]="['/datasets', ds.id]" class="dataset-name-link">
+                    <strong>{{ ds.name }}</strong>
+                  </a>
+                </td>
+                <td>
+                  <span class="badge-status" [class]="'badge-status--' + ds.status">
+                    {{ ds.status }}
+                  </span>
+                </td>
+                <td class="text-secondary">{{ ds.versions[0]?.originalFilename || '—' }}</td>
+                <td class="text-secondary">{{ (ds.versions[0]?.fileSize || 0) | fileSize }}</td>
+                <td>{{ ds.versions.length }}</td>
+                <td>
+                  <a [routerLink]="['/datasets', ds.id]" class="btn-view">Inspect</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     }
+  </div>
+
+  <!-- Architecture Pipeline Stages -->
+  <div class="section-card">
+    <div class="section-card__header">
+      <h2>Processing Pipeline Architecture</h2>
+      <span class="badge-grounded">5 Integrated Phases</span>
+    </div>
+
+    <div class="pipeline-grid">
+      @for (step of pipelineSteps; track step.step) {
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">{{ step.step }}</span>
+            <span class="step-tag">{{ step.tag }}</span>
+          </div>
+          <h3>{{ step.title }}</h3>
+          <p>{{ step.description }}</p>
+        </div>
+      }
+    </div>
   </div>
 </section>

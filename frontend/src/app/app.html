@@ -1,10 +1,37 @@
 <div class="app-shell">
   <header class="app-shell__header">
-    <span class="app-shell__brand">{{ title() }}</span>
+    <div class="app-shell__brand-group">
+      <a routerLink="/" class="app-shell__brand">
+        <span class="brand-icon">⚡</span>
+        <span class="brand-title">{{ title() }}</span>
+      </a>
+      <span class="brand-badge">SaaS Intelligence</span>
+    </div>
+
     <nav class="app-shell__nav">
-      <a routerLink="/">Dashboard</a>
-      <a routerLink="/datasets">Datasets</a>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        Dashboard
+      </a>
+      <a routerLink="/datasets" routerLinkActive="active">
+        Datasets
+      </a>
     </nav>
+
+    <div class="app-shell__actions">
+      <button
+        type="button"
+        class="theme-toggle"
+        (click)="toggleTheme()"
+        [attr.aria-label]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+        [title]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+      >
+        @if (themeService.isDark()) {
+          <span class="theme-icon">☀️ Light</span>
+        } @else {
+          <span class="theme-icon">🌙 Dark</span>
+        }
+      </button>
+    </div>
   </header>
 
   <main class="app-shell__content">

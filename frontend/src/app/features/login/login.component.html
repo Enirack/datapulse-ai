@@ -1,15 +1,16 @@
 <section class="login">
   <h1>{{ mode() === 'login' ? 'Log in' : 'Create an account' }}</h1>
+  <p class="subtitle">{{ mode() === 'login' ? 'Welcome back to DataPulse AI' : 'Get started with autonomous data intelligence' }}</p>
 
   <form (ngSubmit)="submit()">
     <label>
       Email
-      <input type="email" name="email" [(ngModel)]="email" required autocomplete="username" />
+      <input type="email" name="email" [(ngModel)]="email" required autocomplete="username" placeholder="user@datapulse.local" />
     </label>
 
     <label>
       Password
-      <input type="password" name="password" [(ngModel)]="password" required minlength="8" autocomplete="current-password" />
+      <input type="password" name="password" [(ngModel)]="password" required minlength="8" autocomplete="current-password" placeholder="••••••••" />
     </label>
 
     @if (errorMessage(); as message) {

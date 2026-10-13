@@ -115,8 +115,8 @@ This project is built incrementally, one phase at a time, never skipping ahead:
 4. ✅ **Data cleaning** — automated recommendations, dry-run preview, non-destructive versioning
 5. ✅ **Data analytics & visualization** — numeric distributions, boxplots, correlations, time series, Chart.js
 6. ✅ **AI analyst** — automated executive narrative, hygiene health score, categorized insights (facts, interpretations, recommendations), zero-fabrication grounded Q&A
-7. ⏳ **Professional UI** — complete design system, dark mode, responsive dashboards *(next)*
-8. ⏳ **Production readiness** — security hardening, E2E tests, metrics, deployment
+7. ✅ **Professional UI** — complete design system, dark mode toggle with ThemeService, live search filtering, shimmer skeleton loaders, command center KPIs
+8. ⏳ **Production readiness** — security hardening, E2E tests, metrics, deployment *(next)*
 
 ## Data principles
 
@@ -138,18 +138,20 @@ cd data-engine && ruff check .
 cd data-engine && mypy app/
 cd data-engine && pytest
 
-# Frontend (Vitest unit tests + ESLint)
+# Frontend (Vitest unit tests + ESLint + Build)
 cd frontend && npm run lint
 cd frontend && npx ng test --watch=false
+cd frontend && npm run build
 ```
 
 All quality checks and tests run automatically in CI on every push/PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Status
 
-**Phases 1 through 6 complete.** 
+**Phases 1 through 7 complete.** 
 - **Profiling (Phase 3):** Deterministic type detection, null/unique/duplicate statistics, IQR outliers. Full contract: [`docs/data-profiling.md`](docs/data-profiling.md).
 - **Cleaning (Phase 4):** Issue detection, actionable recommendations, before/after preview, reproducible operation pipelines, non-destructive version creation. Full contract: [`docs/data-cleaning.md`](docs/data-cleaning.md).
 - **Analytics & Visualization (Phase 5):** Numeric distributions (mean, median, std dev, min/max, sum), histogram binning, SVG-styled boxplots, categorical bar charts, temporal aggregation (day/week/month/year), Pearson correlation matrices, downsampled scatter relationships. Full contract: [`docs/data-analytics.md`](docs/data-analytics.md).
 - **AI Analyst (Phase 6):** Executive summary narrative, dataset health scoring (0-100), structured insight cards with kind categorization (`computed_fact`, `statistical_interpretation`, `recommendation`), and interactive grounded Q&A with zero hallucination. Full contract: [`docs/ai-analyst.md`](docs/ai-analyst.md).
+- **Professional UI & UX (Phase 7):** Comprehensive Design System with CSS tokens, reactive Light/Dark Mode toggle persisted via `ThemeService`, modernized Command Center dashboard with live KPIs and architecture map, real-time Datasets Explorer search filtering, smooth Shimmer Skeleton loaders, and polished dark-friendly card styles.
 - **Architecture & Quality:** Component-based UI architecture, global toast notifications, strict linting (ESLint, Ruff), static type checking (PHPStan level 5, Mypy), automated CI pipeline.

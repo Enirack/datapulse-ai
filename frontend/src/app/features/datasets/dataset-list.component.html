@@ -1,35 +1,121 @@
 <section class="dataset-list">
   <header class="dataset-list__header">
-    <h1>Datasets</h1>
-    <button type="button" class="link-button" (click)="logout()">Log out</button>
+    <div class="header-titles">
+      <h1>Datasets Explorer</h1>
+      <p class="subtitle">Upload, manage, and inspect your tabular data assets.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn-logout" (click)="logout()">Sign out</button>
+    </div>
   </header>
 
-  <div class="upload">
-    <input type="file" accept=".csv,.xlsx,.json" (change)="onFileSelected($event)" />
-    <button type="button" [disabled]="!selectedFile || uploading()" (click)="upload()">
-      {{ uploading() ? 'Uploading…' : 'Upload' }}
-    </button>
+  <!-- Upload Card -->
+  <div class="upload-card">
+    <div class="upload-card__info">
+      <h3>Ingest New Dataset</h3>
+      <p>Accepted formats: <code>.csv</code>, <code>.xlsx</code>, <code>.json</code> (with automated security inspection)</p>
+    </div>
+
+    <div class="upload-card__controls">
+      <label class="file-picker-label">
+        <input type="file" accept=".csv,.xlsx,.json" (change)="onFileSelected($event)" class="file-input" />
+        <span class="file-picker-btn">
+          {{ selectedFile ? selectedFile.name : 'Choose file…' }}
+        </span>
+      </label>
+
+      <button
+        type="button"
+        class="btn-upload"
+        [disabled]="!selectedFile || uploading()"
+        (click)="upload()"
+      >
+        @if (uploading()) {
+          Ingesting…
+        } @else {
+          Upload & Profile
+        }
+      </button>
+    </div>
   </div>
 
   @if (errorMessage(); as message) {
-    <p class="error">{{ message }}</p>
+    <div class="alert alert--error">
+      <strong>Error:</strong> {{ message }}
+    </div>
   }
 
+  <!-- Search & Toolbar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input
+        type="text"
+        placeholder="Search datasets by name or filename…"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        class="search-input"
+      />
+    </div>
+    <span class="dataset-counter">
+      {{ filteredDatasets().length }} of {{ datasets().length }} dataset(s)
+    </span>
+  </div>
+
+  <!-- Content State -->
   @if (loading()) {
-    <p>Loading…</p>
+    <div class="loading-state">
+      <app-skeleton-loader variant="card" [count]="4" />
+    </div>
   } @else if (datasets().length === 0) {
-    <p class="empty">No datasets yet. Upload a CSV, XLSX, or JSON file to get started.</p>
+    <div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <h3>No datasets yet</h3>
+      <p>Upload your first dataset above to unlock automated profiling, cleaning, analytics, and AI insights.</p>
+    </div>
+  } @else if (filteredDatasets().length === 0) {
+    <div class="empty-state">
+      <p>No datasets found matching "<strong>{{ searchQuery() }}</strong>".</p>
+      <button type="button" class="btn-clear" (click)="searchQuery.set('')">Clear search filter</button>
+    </div>
   } @else {
-    <ul class="dataset-list__items">
-      @for (dataset of datasets(); track dataset.id) {
-        <li>
-          <a [routerLink]="['/datasets', dataset.id]">
-            <strong>{{ dataset.name }}</strong>
-            <span class="status" [class]="'status--' + dataset.status">{{ dataset.status }}</span>
-            <span class="meta">{{ dataset.versions[0]?.originalFilename }}</span>
-          </a>
-        </li>
+    <div class="datasets-grid">
+      @for (dataset of filteredDatasets(); track dataset.id) {
+        <a [routerLink]="['/datasets', dataset.id]" class="dataset-card">
+          <div class="card-top">
+            <h3 class="dataset-title">{{ dataset.name }}</h3>
+            <span class="badge-status" [class]="'badge-status--' + dataset.status">
+              {{ dataset.status }}
+            </span>
+          </div>
+
+          @if (dataset.description) {
+            <p class="dataset-desc">{{ dataset.description }}</p>
+          }
+
+          <div class="card-meta">
+            <div class="meta-row">
+              <span class="meta-label">File:</span>
+              <span class="meta-value">{{ dataset.versions[0]?.originalFilename || '—' }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Size:</span>
+              <span class="meta-value">{{ (dataset.versions[0]?.fileSize || 0) | fileSize }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Versions:</span>
+              <span class="meta-value">{{ dataset.versions.length }}</span>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <span class="action-hint">Explore & Analyze →</span>
+            @if (dataset.versions[0]?.hasFormulaInjectionRisk) {
+              <span class="badge-warning" title="Contains potential spreadsheet formulas">⚠ Formula Risk</span>
+            }
+          </div>
+        </a>
       }
-    </ul>
+    </div>
   }
 </section>

@@ -1,20 +1,26 @@
 .analytics {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-color);
 
   h2 {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
     margin: 0 0 1rem;
   }
 
   h3 {
-    font-size: 0.95rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
     margin: 1.5rem 0 0.75rem;
   }
 
   h4 {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
     margin: 0 0 0.5rem;
   }
 }
@@ -28,10 +34,15 @@
     padding: 0.6rem 1.2rem;
     border: none;
     border-radius: 6px;
-    background: #1a73e8;
+    background: var(--brand-primary);
     color: #fff;
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: var(--brand-primary-hover);
+    }
 
     &:disabled {
       opacity: 0.5;
@@ -39,22 +50,28 @@
     }
 
     &.secondary {
-      background: #eee;
-      color: #333;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+
+      &:hover:not(:disabled) {
+        background: var(--bg-surface-hover);
+        color: var(--text-primary);
+      }
     }
   }
 }
 
 .error {
-  color: #c62828;
+  color: var(--color-danger);
 }
 
 .empty {
-  color: #666;
+  color: var(--text-muted);
 }
 
 .meta {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.85rem;
 }
 
@@ -74,12 +91,13 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: #888;
+    color: var(--text-muted);
   }
 
   dd {
     margin: 0;
     font-weight: 600;
+    color: var(--text-primary);
   }
 
   &--compact {
@@ -101,11 +119,12 @@
 }
 
 .analytics-card {
-  padding: 1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background: #fff;
-  margin-bottom: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.25rem;
 }
 
 .chart-row {
@@ -127,7 +146,7 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #888;
+  color: var(--text-muted);
   margin: 0 0 0.35rem;
 }
 

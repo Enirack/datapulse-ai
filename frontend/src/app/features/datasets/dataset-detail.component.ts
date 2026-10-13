@@ -15,6 +15,7 @@ import {
   DatasetVersionSummary,
 } from '../../core/models';
 import { FileSizePipe } from '../../shared/file-size.pipe';
+import { SkeletonLoaderComponent } from '../../shared/skeleton-loader.component';
 import { AiAnalystSectionComponent } from './sections/ai-analyst-section.component';
 import { AnalyticsSectionComponent } from './sections/analytics-section.component';
 import { CleaningSectionComponent } from './sections/cleaning-section.component';
@@ -26,6 +27,7 @@ import { ProfileSectionComponent } from './sections/profile-section.component';
   imports: [
     RouterLink,
     FileSizePipe,
+    SkeletonLoaderComponent,
     ProfileSectionComponent,
     CleaningSectionComponent,
     AnalyticsSectionComponent,
