@@ -15,6 +15,7 @@ final class CsvValidator implements FileValidatorInterface
 {
     private const CANDIDATE_DELIMITERS = [',', ';', "\t", '|'];
     private const MAX_SCANNED_ROWS = 50_000;
+    private const MAX_LINE_LENGTH = 65_536; // 64 KiB line limit protects against memory exhaustion
     private const FORMULA_TRIGGER_CHARS = ['=', '+', '-', '@'];
 
     public function validate(string $path): ValidationResult
@@ -39,7 +40,7 @@ final class CsvValidator implements FileValidatorInterface
             $rowCount = 0;
             $formulaInjectionRisk = false;
 
-            while ($rowCount < self::MAX_SCANNED_ROWS && ($row = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
+            while ($rowCount < self::MAX_SCANNED_ROWS && ($row = fgetcsv($handle, self::MAX_LINE_LENGTH, $delimiter, '"', '')) !== false) {
                 if ($row === [null] || $row === ['']) {
                     // blank line
                     continue;

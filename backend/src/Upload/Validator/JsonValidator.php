@@ -17,7 +17,7 @@ use App\Upload\ValidationResult;
  */
 final class JsonValidator implements FileValidatorInterface
 {
-    private const MAX_DEPTH = 512;
+    private const MAX_DEPTH = 64;
 
     public function validate(string $path): ValidationResult
     {
@@ -28,6 +28,10 @@ final class JsonValidator implements FileValidatorInterface
 
         if (trim($contents) === '') {
             return ValidationResult::invalid(['JSON file is empty.']);
+        }
+
+        if (str_contains($contents, "\0")) {
+            return ValidationResult::invalid(['File contains invalid binary data.']);
         }
 
         json_decode($contents, associative: true, depth: self::MAX_DEPTH, flags: JSON_BIGINT_AS_STRING);

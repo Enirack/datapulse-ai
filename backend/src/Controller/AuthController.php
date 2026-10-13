@@ -36,11 +36,17 @@ final class AuthController
             return new JsonResponse(['status' => 'error', 'message' => 'Invalid JSON body.'], 400);
         }
 
-        $email = \is_string($payload['email'] ?? null) ? trim($payload['email']) : '';
+        $rawEmail = \is_string($payload['email'] ?? null) ? trim($payload['email']) : '';
         $password = \is_string($payload['password'] ?? null) ? $payload['password'] : '';
 
+        if (str_contains($rawEmail, "\0") || str_contains($password, "\0")) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Null bytes are not permitted.'], 400);
+        }
+
+        $email = mb_strtolower($rawEmail);
+
         $violations = $this->validator->validate($email, [new Assert\NotBlank(), new Assert\Email()]);
-        $violations->addAll($this->validator->validate($password, [new Assert\NotBlank(), new Assert\Length(min: 8, max: 4096)]));
+        $violations->addAll($this->validator->validate($password, [new Assert\NotBlank(), new Assert\Length(min: 8, max: 128)]));
 
         if (\count($violations) > 0) {
             $errors = [];
