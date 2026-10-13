@@ -5,6 +5,8 @@ import { ApiService } from './api.service';
 import {
   Analysis,
   AnalyticsResult,
+  AiInsightsResult,
+  AiQuestionResponse,
   CleaningOperation,
   CleaningPreviewResult,
   CleaningRecommendationsResponse,
@@ -65,5 +67,17 @@ export class DatasetService {
 
   getAnalytics(datasetId: string, versionId: string): Observable<Analysis<AnalyticsResult>> {
     return this.api.get<Analysis<AnalyticsResult>>(`/datasets/${datasetId}/versions/${versionId}/analytics`);
+  }
+
+  triggerAiInsights(datasetId: string, versionId: string, force = false): Observable<Analysis<AiInsightsResult>> {
+    return this.api.post<Analysis<AiInsightsResult>>(`/datasets/${datasetId}/versions/${versionId}/insights${force ? '?force=true' : ''}`, {});
+  }
+
+  getAiInsights(datasetId: string, versionId: string): Observable<Analysis<AiInsightsResult>> {
+    return this.api.get<Analysis<AiInsightsResult>>(`/datasets/${datasetId}/versions/${versionId}/insights`);
+  }
+
+  askAiAnalyst(datasetId: string, versionId: string, question: string): Observable<AiQuestionResponse> {
+    return this.api.post<AiQuestionResponse>(`/datasets/${datasetId}/versions/${versionId}/insights/ask`, { question });
   }
 }

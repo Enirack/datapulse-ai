@@ -114,8 +114,8 @@ This project is built incrementally, one phase at a time, never skipping ahead:
 3. ✅ **Data profiling** — deterministic type detection, column statistics, IQR outliers, quality metrics
 4. ✅ **Data cleaning** — automated recommendations, dry-run preview, non-destructive versioning
 5. ✅ **Data analytics & visualization** — numeric distributions, boxplots, correlations, time series, Chart.js
-6. ⏳ **AI analyst** — automated narrative generation, LLM reasoning over computed facts *(next)*
-7. ⏳ **Professional UI** — complete design system, dark mode, responsive dashboards
+6. ✅ **AI analyst** — automated executive narrative, hygiene health score, categorized insights (facts, interpretations, recommendations), zero-fabrication grounded Q&A
+7. ⏳ **Professional UI** — complete design system, dark mode, responsive dashboards *(next)*
 8. ⏳ **Production readiness** — security hardening, E2E tests, metrics, deployment
 
 ## Data principles
@@ -147,8 +147,9 @@ All quality checks and tests run automatically in CI on every push/PR ([`.github
 
 ## Status
 
-**Phases 1 through 5 complete.** 
+**Phases 1 through 6 complete.** 
 - **Profiling (Phase 3):** Deterministic type detection, null/unique/duplicate statistics, IQR outliers. Full contract: [`docs/data-profiling.md`](docs/data-profiling.md).
 - **Cleaning (Phase 4):** Issue detection, actionable recommendations, before/after preview, reproducible operation pipelines, non-destructive version creation. Full contract: [`docs/data-cleaning.md`](docs/data-cleaning.md).
 - **Analytics & Visualization (Phase 5):** Numeric distributions (mean, median, std dev, min/max, sum), histogram binning, SVG-styled boxplots, categorical bar charts, temporal aggregation (day/week/month/year), Pearson correlation matrices, downsampled scatter relationships. Full contract: [`docs/data-analytics.md`](docs/data-analytics.md).
+- **AI Analyst (Phase 6):** Executive summary narrative, dataset health scoring (0-100), structured insight cards with kind categorization (`computed_fact`, `statistical_interpretation`, `recommendation`), and interactive grounded Q&A with zero hallucination. Full contract: [`docs/ai-analyst.md`](docs/ai-analyst.md).
 - **Architecture & Quality:** Component-based UI architecture, global toast notifications, strict linting (ESLint, Ruff), static type checking (PHPStan level 5, Mypy), automated CI pipeline.

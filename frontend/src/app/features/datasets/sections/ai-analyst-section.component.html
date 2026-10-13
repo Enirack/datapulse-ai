@@ -1,0 +1,239 @@
+<section class="ai-analyst" id="ai-analyst-section">
+  <div class="section-header">
+    <div class="header-titles">
+      <h2>AI Data Analyst</h2>
+      <span class="badge-phase">Grounded Insights</span>
+    </div>
+    <p class="subtitle">
+      Automated executive synthesis, quality scoring, and interactive Q&A strictly grounded in deterministic profiling and analytics metrics.
+    </p>
+  </div>
+
+  @if (insightsError(); as err) {
+    <div class="alert alert--error">
+      <strong>Synthesis Error:</strong> {{ err }}
+      <button type="button" class="btn-retry" (click)="onGenerate(true)">Retry</button>
+    </div>
+  }
+
+  @if (!insightsResult()) {
+    <div class="initial-state">
+      @if (!canGenerate()) {
+        <div class="notice notice--prereq">
+          <p>
+            Profiling and Analytics must be completed first before the AI Analyst can synthesize insights.
+          </p>
+        </div>
+      } @else {
+        <div class="notice notice--ready">
+          <p>
+            Profiling and exploratory analytics are ready. Generate an executive summary, health assessment, and actionable recommendations.
+          </p>
+          <button
+            type="button"
+            class="btn-primary"
+            [disabled]="loadingInsights()"
+            (click)="onGenerate(false)"
+          >
+            @if (loadingInsights()) {
+              Synthesizing Insights…
+            } @else {
+              Synthesize AI Insights
+            }
+          </button>
+        </div>
+      }
+    </div>
+  } @else if (insightsResult(); as result) {
+    <!-- Health Score & Executive Summary Banner -->
+    <div class="executive-card">
+      <div class="executive-top">
+        <div class="health-gauge" [class]="'tone--' + healthRating().tone">
+          <div class="gauge-value">{{ result.healthScore }}</div>
+          <div class="gauge-scale">/ 100</div>
+          <div class="gauge-badge">{{ healthRating().label }}</div>
+        </div>
+
+        <div class="executive-narrative">
+          <h3>Executive Summary</h3>
+          <p>{{ result.executiveSummary }}</p>
+          <div class="action-refresh">
+            <button
+              type="button"
+              class="btn-secondary"
+              [disabled]="loadingInsights()"
+              (click)="onGenerate(true)"
+            >
+              @if (loadingInsights()) {
+                Refreshing…
+              } @else {
+                Re-synthesize
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlights-grid">
+        <div class="highlight-item">
+          <span class="hl-label">Total Rows</span>
+          <span class="hl-value">{{ result.highlights.totalRows }}</span>
+        </div>
+        <div class="highlight-item">
+          <span class="hl-label">Total Columns</span>
+          <span class="hl-value">{{ result.highlights.totalColumns }}</span>
+        </div>
+        <div class="highlight-item">
+          <span class="hl-label">Completeness</span>
+          <span class="hl-value">{{ result.highlights.completenessPercentage }}%</span>
+        </div>
+        @if (result.highlights.topCorrelation) {
+          <div class="highlight-item highlight-item--wide">
+            <span class="hl-label">Key Linear Correlation</span>
+            <span class="hl-value">{{ result.highlights.topCorrelation }}</span>
+          </div>
+        }
+        @if (result.highlights.dominantCategory) {
+          <div class="highlight-item highlight-item--wide">
+            <span class="hl-label">Dominant Category</span>
+            <span class="hl-value">{{ result.highlights.dominantCategory }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Structured Insights with Kind Filters -->
+    <div class="insights-container">
+      <div class="insights-header">
+        <h3>Structured Insights</h3>
+        <div class="filter-tabs">
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedFilter() === 'all'"
+            (click)="setFilter('all')"
+          >
+            All ({{ result.insights.length }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedFilter() === 'computed_fact'"
+            (click)="setFilter('computed_fact')"
+          >
+            Computed Facts
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedFilter() === 'statistical_interpretation'"
+            (click)="setFilter('statistical_interpretation')"
+          >
+            Interpretations
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedFilter() === 'recommendation'"
+            (click)="setFilter('recommendation')"
+          >
+            Recommendations
+          </button>
+        </div>
+      </div>
+
+      <div class="insights-grid">
+        @for (insight of filteredInsights(); track insight.id) {
+          <div class="insight-card" [class]="'kind--' + insight.kind">
+            <div class="card-header">
+              <span class="kind-tag" [class]="'tag--' + insight.kind">
+                @switch (insight.kind) {
+                  @case ('computed_fact') { Fact }
+                  @case ('statistical_interpretation') { Interpretation }
+                  @case ('recommendation') { Actionable }
+                }
+              </span>
+              <span class="category-tag">{{ insight.category }}</span>
+            </div>
+            <h4>{{ insight.title }}</h4>
+            <p>{{ insight.description }}</p>
+          </div>
+        } @empty {
+          <p class="empty-hint">No insights match the selected filter.</p>
+        }
+      </div>
+    </div>
+
+    <!-- Grounded Q&A Assistant -->
+    <div class="qa-section">
+      <div class="qa-header">
+        <h3>Ask the Data Analyst</h3>
+        <span class="qa-guardrail">100% Metric-Grounded • Zero Hallucination</span>
+      </div>
+
+      @if (result.suggestedQuestions.length > 0) {
+        <div class="suggestions-row">
+          <span class="suggestions-label">Suggested:</span>
+          @for (sq of result.suggestedQuestions; track sq) {
+            <button
+              type="button"
+              class="chip-question"
+              [disabled]="asking()"
+              (click)="submitQuestion(sq)"
+            >
+              {{ sq }}
+            </button>
+          }
+        </div>
+      }
+
+      <div class="qa-input-row">
+        <input
+          type="text"
+          placeholder="Ask a question about distributions, correlations, or anomalies…"
+          [ngModel]="questionText()"
+          (ngModelChange)="questionText.set($event)"
+          (keydown.enter)="submitQuestion()"
+          [disabled]="asking()"
+          class="qa-input"
+        />
+        <button
+          type="button"
+          class="btn-ask"
+          [disabled]="asking() || !questionText().trim()"
+          (click)="submitQuestion()"
+        >
+          @if (asking()) {
+            Thinking…
+          } @else {
+            Ask
+          }
+        </button>
+      </div>
+
+      @if (askError(); as err) {
+        <div class="qa-error">{{ err }}</div>
+      }
+
+      @if (qaHistory().length > 0) {
+        <div class="qa-history">
+          @for (qa of qaHistory(); track $index) {
+            <div class="qa-bubble">
+              <div class="qa-question-bar">
+                <strong>Q:</strong> {{ qa.question }}
+              </div>
+              <div class="qa-answer-bar">
+                <div class="qa-answer-text">
+                  <strong>A:</strong> {{ qa.answer }}
+                </div>
+                <div class="qa-metrics-referenced">
+                  <span class="badge-grounded">Grounded</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</section>

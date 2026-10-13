@@ -46,6 +46,9 @@ services:
     App\Profiling\DataEngineClientInterface:
         class: App\Profiling\HttpDataEngineClient
 
+    App\Ai\AiClientInterface:
+        class: App\Ai\RuleBasedAiClient
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 

@@ -14,4 +14,5 @@ enum AnalysisType: string
     case Profiling = 'profiling';
     case Cleaning = 'cleaning';
     case Analytics = 'analytics';
+    case AiInsights = 'ai_insights';
 }

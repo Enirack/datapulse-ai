@@ -313,3 +313,41 @@ export interface AnalyticsResult {
   correlations: CorrelationMatrix | null;
   scatter: ScatterChart[];
 }
+
+export type InsightKind = 'computed_fact' | 'statistical_interpretation' | 'recommendation';
+
+export type AiInsightMetrics = Record<string, unknown>;
+
+export interface AiInsight {
+  id: string;
+  kind: InsightKind;
+  title: string;
+  description: string;
+  category: string;
+  metrics: AiInsightMetrics;
+}
+
+export interface AiHighlights {
+  totalRows: number;
+  totalColumns: number;
+  completenessPercentage: number;
+  dominantCategory: string | null;
+  topCorrelation: string | null;
+}
+
+export interface AiInsightsResult {
+  schemaVersion: string;
+  healthScore: number;
+  executiveSummary: string;
+  highlights: AiHighlights;
+  insights: AiInsight[];
+  suggestedQuestions: string[];
+}
+
+export interface AiQuestionResponse {
+  schemaVersion: string;
+  question: string;
+  answer: string;
+  grounded: boolean;
+  referencedMetrics: Record<string, unknown>;
+}

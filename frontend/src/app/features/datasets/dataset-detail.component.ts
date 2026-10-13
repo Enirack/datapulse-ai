@@ -10,10 +10,12 @@ import {
   CleaningPreviewResult,
   CleaningRecommendation,
   CleaningResult,
+  AiInsightsResult,
   Dataset,
   DatasetVersionSummary,
 } from '../../core/models';
 import { FileSizePipe } from '../../shared/file-size.pipe';
+import { AiAnalystSectionComponent } from './sections/ai-analyst-section.component';
 import { AnalyticsSectionComponent } from './sections/analytics-section.component';
 import { CleaningSectionComponent } from './sections/cleaning-section.component';
 import { ProfileSectionComponent } from './sections/profile-section.component';
@@ -27,6 +29,7 @@ import { ProfileSectionComponent } from './sections/profile-section.component';
     ProfileSectionComponent,
     CleaningSectionComponent,
     AnalyticsSectionComponent,
+    AiAnalystSectionComponent,
   ],
   templateUrl: './dataset-detail.component.html',
   styleUrl: './dataset-detail.component.scss',
@@ -65,6 +68,14 @@ export class DatasetDetailComponent implements OnInit {
   protected runningAnalytics = signal(false);
   protected analyticsError = signal<string | null>(null);
 
+  protected aiAnalysis = signal<Analysis<AiInsightsResult> | null>(null);
+  protected loadingAiInsights = signal(false);
+  protected aiInsightsError = signal<string | null>(null);
+
+  protected canGenerateInsights = computed(() => {
+    return this.analysis()?.status === 'completed' && this.analyticsAnalysis()?.status === 'completed';
+  });
+
   ngOnInit(): void {
     const datasetId = this.route.snapshot.paramMap.get('id');
     if (!datasetId) {
@@ -77,6 +88,7 @@ export class DatasetDetailComponent implements OnInit {
         this.loading.set(false);
         this.loadExistingProfile(dataset);
         this.loadExistingAnalytics(dataset);
+        this.loadExistingAiInsights(dataset);
       },
       error: (error: ApiError) => {
         this.loading.set(false);
@@ -276,4 +288,44 @@ export class DatasetDetailComponent implements OnInit {
       },
     });
   }
+
+  generateAiInsights(force = false): void {
+    const dataset = this.dataset();
+    const version = this.currentVersion();
+    if (!dataset || !version || this.loadingAiInsights()) {
+      return;
+    }
+
+    this.loadingAiInsights.set(true);
+    this.aiInsightsError.set(null);
+
+    this.datasetService.triggerAiInsights(dataset.id, version.id, force).subscribe({
+      next: (analysis) => {
+        this.loadingAiInsights.set(false);
+        this.aiAnalysis.set(analysis);
+        if (analysis.status === 'failed') {
+          this.aiInsightsError.set(analysis.errorMessage || 'AI insights generation failed.');
+        }
+      },
+      error: (error: ApiError) => {
+        this.loadingAiInsights.set(false);
+        this.aiInsightsError.set(error.message || 'Failed to synthesize AI insights.');
+      },
+    });
+  }
+
+  private loadExistingAiInsights(dataset: Dataset): void {
+    const version = dataset.versions[0];
+    if (!version) {
+      return;
+    }
+
+    this.datasetService.getAiInsights(dataset.id, version.id).subscribe({
+      next: (analysis) => this.aiAnalysis.set(analysis),
+      error: () => {
+        // No AI insights yet
+      },
+    });
+  }
 }
+

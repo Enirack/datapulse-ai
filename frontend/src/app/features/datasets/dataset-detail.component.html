@@ -53,5 +53,16 @@
       [analyticsError]="analyticsError()"
       (analyticsRequested)="runAnalytics($event)"
     />
+
+    <app-ai-analyst-section
+      [datasetId]="currentDataset.id"
+      [versionId]="currentVersion()?.id ?? ''"
+      [insightsAnalysis]="aiAnalysis()"
+      [loadingInsights]="loadingAiInsights()"
+      [insightsError]="aiInsightsError()"
+      [canGenerate]="canGenerateInsights()"
+      (generateRequested)="generateAiInsights($event)"
+    />
   </section>
 }
+

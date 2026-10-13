@@ -134,6 +134,11 @@ describe('DatasetDetailComponent', () => {
       .flush({ status: 'error', message: 'Not analyzed yet.' }, { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
 
+    httpMock
+      .expectOne(baseUrl(`/datasets/${DATASET_ID}/versions/${VERSION_ID}/insights`))
+      .flush({ status: 'error', message: 'No AI insights yet.' }, { status: 404, statusText: 'Not Found' });
+    fixture.detectChanges();
+
     return fixture;
   }
 
@@ -373,4 +378,42 @@ describe('DatasetDetailComponent', () => {
 
     expect(compiled.querySelector('.error')?.textContent).toContain('Something went wrong.');
   });
+
+  it('triggers AI insights synthesis and updates state on success', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    component.generateAiInsights();
+    httpMock.expectOne(baseUrl(`/datasets/${DATASET_ID}/versions/${VERSION_ID}/insights`)).flush({
+      id: 'ai-ana-1',
+      datasetVersionId: VERSION_ID,
+      type: 'ai_insights',
+      status: 'completed',
+      resultSchemaVersion: '1.0',
+      result: {
+        schemaVersion: '1.0',
+        healthScore: 92,
+        executiveSummary: 'Clean, verified dataset.',
+        highlights: {
+          totalRows: 100,
+          totalColumns: 4,
+          completenessPercentage: 100,
+          dominantCategory: null,
+          topCorrelation: null,
+        },
+        insights: [],
+        suggestedQuestions: [],
+      },
+      errorMessage: null,
+      createdAt: '2026-01-01T00:00:00Z',
+      startedAt: '2026-01-01T00:00:00Z',
+      completedAt: '2026-01-01T00:00:00Z',
+    });
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('Clean, verified dataset.');
+    expect(compiled.textContent).toContain('92');
+  });
 });
+

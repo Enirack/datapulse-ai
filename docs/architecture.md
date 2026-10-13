@@ -160,6 +160,18 @@ Monolog is configured per environment (`config/packages/monolog.yaml`):
 - The data engine never trusts a storage identifier blindly either, even though it only ever receives one from the trusted backend — same path-containment and symlink checks as the PHP storage class, independently implemented in Python. It has no database access and is never reachable from the browser.
 - Cleaning requests never carry a file path — only a pipeline of operations. The server alone decides which physical file gets read, from the `storagePath` already on record for the version in the URL; there is no field anywhere in the request a client could use to point at an arbitrary file.
 - Analytics requests never carry a file path either — only the version id in the URL. The analytics result itself never exposes the physical storage path or any filesystem detail.
+- AI Analyst insights never inspect raw files or execute code — they strictly reason over deterministic structured metrics from Phase 3 (Profiling) and Phase 5 (Analytics), guaranteeing 100% grounded facts with zero data fabrication.
+
+## AI Analyst (phase 6)
+
+The AI Analyst layer synthesizes executive summaries, calculates dataset hygiene health scores, categorizes actionable findings, and answers analytical questions.
+
+Key architectural guarantees:
+- **Zero Fabrication**: The AI never calculates metrics or inspects raw data rows directly; it is strictly grounded in the verified profile and analytics results.
+- **Explicit Insight Classification**: Every insight generated is typed as `computed_fact`, `statistical_interpretation`, or `recommendation` (`InsightKind`).
+- **Grounded Q&A**: Answers to questions reference computed metrics (`referencedMetrics`) and declare their grounded status.
+- **Provider Agnostic**: Operates with a self-contained, offline deterministic engine (`RuleBasedAiClient`) in test/CI/dev without requiring external API keys, while supporting external LLM integration via `AiClientInterface`.
+Full contract and schema: [`docs/ai-analyst.md`](./ai-analyst.md).
 - CORS is restricted to `localhost`/`127.0.0.1` origins by default (`CORS_ALLOW_ORIGIN`).
 - No secrets are committed. `.env` in `backend/` ships with the Symfony skeleton's public dev defaults plus non-secret app defaults (`MAX_UPLOAD_SIZE`, `DATASET_STORAGE_DIR`); JWT keys and real per-environment secrets are git-ignored (`.env.local`, `config/jwt/*.pem`).
 - Still deferred: rate limiting on auth endpoints, account lockout, email verification, refresh tokens — none of these are needed for a single-request ingestion flow and would be premature before there's a reason to harden auth further.
