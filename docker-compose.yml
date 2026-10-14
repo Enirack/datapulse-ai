@@ -50,6 +50,7 @@ services:
       CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$$}
       DATA_ENGINE_URL: ${DATA_ENGINE_URL:-http://data-engine:8001}
       MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-52428800}
+      DATAPULSE_INVITE_KEYS: ${DATAPULSE_INVITE_KEYS:-DP-DEMO-2026,DP-VIP-ACCESS}
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8000/api/health"]
       interval: 10s

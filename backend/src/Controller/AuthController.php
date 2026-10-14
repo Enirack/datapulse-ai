@@ -42,7 +42,9 @@ final class AuthController
 
         $rawEmail = \is_string($payload['email'] ?? null) ? trim($payload['email']) : '';
         $password = \is_string($payload['password'] ?? null) ? $payload['password'] : '';
-        $rawAccessKey = \is_string($payload['access_key'] ?? null) ? trim($payload['access_key']) : '';
+        $rawAccessKey = \is_string($payload['access_key'] ?? null)
+            ? trim($payload['access_key'])
+            : (\is_string($payload['accessKey'] ?? null) ? trim($payload['accessKey']) : '');
 
         if (str_contains($rawEmail, "\0") || str_contains($password, "\0") || str_contains($rawAccessKey, "\0")) {
             return new JsonResponse(['status' => 'error', 'message' => 'Null bytes are not permitted.'], 400);
