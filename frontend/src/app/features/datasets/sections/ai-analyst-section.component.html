@@ -18,7 +18,18 @@
 
   @if (!insightsResult()) {
     <div class="initial-state">
-      @if (!canGenerate()) {
+      @if (!auth.isPro()) {
+        <div class="pro-paywall-card">
+          <div class="pro-paywall-badge">⭐ PLAN PRO REQUIS</div>
+          <h3>Débloquez l'Analyste IA Exécutif</h3>
+          <p>
+            L'Analyste IA interprète vos analyses statistiques, calcule un score de santé et répond à toutes vos questions en langage naturel.
+          </p>
+          <button type="button" class="btn-upgrade-pro" (click)="onUpgrade()">
+            ⭐ Passer au Plan Pro (Débloquer l'IA)
+          </button>
+        </div>
+      } @else if (!canGenerate()) {
         <div class="notice notice--prereq">
           <p>
             Profiling and Analytics must be completed first before the AI Analyst can synthesize insights.

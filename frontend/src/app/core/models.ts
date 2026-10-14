@@ -351,3 +351,24 @@ export interface AiQuestionResponse {
   grounded: boolean;
   referencedMetrics: Record<string, unknown>;
 }
+
+export type PlanType = 'free' | 'pro' | 'business';
+
+export interface PlanLimits {
+  maxDatasets: number;
+  maxUploadSizeBytes: number;
+  canUseAiAnalyst: boolean;
+  canApplyCleaning: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  roles: string[];
+  plan: PlanType;
+  limits: PlanLimits;
+  usage?: {
+    datasetCount: number;
+  };
+  createdAt: string;
+}

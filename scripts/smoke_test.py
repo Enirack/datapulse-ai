@@ -259,6 +259,28 @@ def run_smoke_test(base_url: str) -> bool:
     affected = prev_body.get("estimatedAffectedRows", 0)
     log_success(f"Cleaning preview estimated affected rows: {affected}")
 
+    # Check tier restrictions and upgrade if on Free plan
+    me_status, me_body = client.request("GET", "/api/me")
+    if me_status == 200 and isinstance(me_body, dict) and me_body.get("plan") == "free":
+        # Verify Free tier is blocked from applying cleaning
+        free_clean_status, _ = client.request(
+            "POST",
+            f"/api/datasets/{dataset_id}/versions/{version_id}/clean",
+            {"operations": [{"type": "remove_duplicate_rows"}]},
+        )
+        if free_clean_status == 403:
+            log_success("Free tier quota restriction verified: clean execution blocked with HTTP 403")
+        else:
+            log_error(f"Free tier cleaning restriction check failed: expected 403, got {free_clean_status}")
+            return False
+
+        # Upgrade account to Pro
+        upg_status, upg_body = client.request("POST", "/api/me/upgrade", {"targetPlan": "pro"})
+        if upg_status != 200 or not isinstance(upg_body, dict) or upg_body.get("plan") != "pro":
+            log_error(f"Plan upgrade failed: status {upg_status}, response: {upg_body}")
+            return False
+        log_success("Account successfully upgraded to Pro plan (unlimited cleaning & AI Analyst unlocked)")
+
     # Apply Cleaning
     clean_status, clean_body = client.request(
         "POST",

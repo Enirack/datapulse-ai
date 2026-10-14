@@ -6,6 +6,8 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Presentation\UserPresenter;
+use App\Enum\Plan;
+use App\Repository\DatasetRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Exception\JsonException;
@@ -22,6 +24,7 @@ final class AuthController
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly UserRepository $userRepository,
+        private readonly DatasetRepository $datasetRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly ValidatorInterface $validator,
         private readonly string $inviteKeys,
@@ -76,13 +79,16 @@ final class AuthController
             return new JsonResponse(['status' => 'error', 'message' => 'An account with this email already exists.'], 422);
         }
 
-        $user = new User($email, '');
+        $isProKey = str_contains(strtoupper($rawAccessKey), 'VIP') || str_contains(strtoupper($rawAccessKey), 'PRO');
+        $initialPlan = $isProKey ? Plan::Pro : Plan::Free;
+
+        $user = new User($email, '', $initialPlan);
         $user->setPassword($this->passwordHasher->hashPassword($user, $password));
 
         $this->em->persist($user);
         $this->em->flush();
 
-        return new JsonResponse(UserPresenter::present($user), 201);
+        return new JsonResponse(UserPresenter::present($user, 0), 201);
     }
 
     #[Route('/api/auth/login', name: 'api_auth_login', methods: ['POST'])]
@@ -100,6 +106,36 @@ final class AuthController
             return new JsonResponse(['status' => 'error', 'message' => 'Authentication required.'], 401);
         }
 
-        return new JsonResponse(UserPresenter::present($user));
+        $count = $this->datasetRepository->countForOwner($user);
+
+        return new JsonResponse(UserPresenter::present($user, $count));
+    }
+
+    #[Route('/api/me/upgrade', name: 'api_me_upgrade', methods: ['POST'])]
+    public function upgrade(Request $request, #[CurrentUser] ?User $user): JsonResponse
+    {
+        if ($user === null) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Authentication required.'], 401);
+        }
+
+        try {
+            $payload = $request->toArray();
+        } catch (JsonException) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Invalid JSON body.'], 400);
+        }
+
+        $targetPlan = strtolower((string) ($payload['plan'] ?? 'pro'));
+        $planEnum = match ($targetPlan) {
+            'business' => Plan::Business,
+            'free' => Plan::Free,
+            default => Plan::Pro,
+        };
+
+        $user->setPlan($planEnum);
+        $this->em->flush();
+
+        $count = $this->datasetRepository->countForOwner($user);
+
+        return new JsonResponse(UserPresenter::present($user, $count));
     }
 }

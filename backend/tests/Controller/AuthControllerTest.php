@@ -154,4 +154,48 @@ final class AuthControllerTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(401);
     }
+
+    public function testRegisterWithDemoKeyYieldsFreePlan(): void
+    {
+        $client = static::createClient();
+
+        $data = $this->registerUser($client, 'freeuser@example.test', 'correct-horse-battery', accessKey: 'DP-DEMO-2026');
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('free', $data['plan']);
+        self::assertSame(2, $data['limits']['maxDatasets']);
+        self::assertFalse($data['limits']['canUseAiAnalyst']);
+        self::assertFalse($data['limits']['canApplyCleaning']);
+    }
+
+    public function testRegisterWithVipKeyYieldsProPlan(): void
+    {
+        $client = static::createClient();
+
+        $data = $this->registerUser($client, 'vipuser@example.test', 'correct-horse-battery', accessKey: 'DP-VIP-ACCESS');
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('pro', $data['plan']);
+        self::assertTrue($data['limits']['canUseAiAnalyst']);
+        self::assertTrue($data['limits']['canApplyCleaning']);
+    }
+
+    public function testUpgradeEndpointTransitionsPlanToPro(): void
+    {
+        $client = static::createClient();
+        $this->registerUser($client, 'upgradeuser@example.test', 'correct-horse-battery', accessKey: 'DP-DEMO-2026');
+        $token = $this->loginUser($client, 'upgradeuser@example.test', 'correct-horse-battery');
+
+        $client->request(
+            'POST',
+            '/api/me/upgrade',
+            server: array_merge(['CONTENT_TYPE' => 'application/json'], $this->authHeaders($token)),
+            content: json_encode(['plan' => 'pro'], \JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(200);
+        $data = json_decode($client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame('pro', $data['plan']);
+        self::assertTrue($data['limits']['canUseAiAnalyst']);
+    }
 }

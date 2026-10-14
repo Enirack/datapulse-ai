@@ -14,6 +14,18 @@
     <div class="upload-card__info">
       <h3>Ingest New Dataset</h3>
       <p>Accepted formats: <code>.csv</code>, <code>.xlsx</code>, <code>.json</code> (with automated security inspection)</p>
+
+      <div class="quota-banner">
+        <span class="plan-pill" [class.pro]="auth.isPro()">{{ auth.plan() | uppercase }}</span>
+        @if (!auth.isPro()) {
+          <span class="quota-usage">{{ datasets().length }} / {{ auth.limits().maxDatasets }} datasets utilisés (5 Mo max / fichier)</span>
+          <button type="button" class="btn-upgrade-pill" (click)="upgradeToPro()">
+            ⭐ Passer Pro
+          </button>
+        } @else {
+          <span class="quota-usage">Datasets illimités (50 Mo max / fichier)</span>
+        }
+      </div>
     </div>
 
     <div class="upload-card__controls">

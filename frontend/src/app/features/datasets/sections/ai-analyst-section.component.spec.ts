@@ -4,6 +4,7 @@ import { ComponentRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../../environments/environment';
+import { AuthService } from '../../../core/auth.service';
 import { httpErrorInterceptor } from '../../../core/http-error.interceptor';
 import { AiInsightsResult, Analysis } from '../../../core/models';
 import { AiAnalystSectionComponent } from './ai-analyst-section.component';
@@ -76,13 +77,21 @@ describe('AiAnalystSectionComponent', () => {
   let component: AiAnalystSectionComponent;
   let componentRef: ComponentRef<AiAnalystSectionComponent>;
   let httpMock: HttpTestingController;
+  let authServiceSpy: { isPro: ReturnType<typeof vi.fn>; plan: ReturnType<typeof vi.fn>; upgrade: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
+    authServiceSpy = {
+      isPro: vi.fn().mockReturnValue(true),
+      plan: vi.fn().mockReturnValue('pro'),
+      upgrade: vi.fn(),
+    };
+
     await TestBed.configureTestingModule({
       imports: [AiAnalystSectionComponent],
       providers: [
         provideHttpClient(withInterceptors([httpErrorInterceptor])),
         provideHttpClientTesting(),
+        { provide: AuthService, useValue: authServiceSpy },
       ],
     }).compileComponents();
 
@@ -94,6 +103,16 @@ describe('AiAnalystSectionComponent', () => {
 
   afterEach(() => {
     httpMock.verify();
+  });
+
+  it('renders paywall banner when user is on free plan', () => {
+    authServiceSpy.isPro.mockReturnValue(false);
+    authServiceSpy.plan.mockReturnValue('free');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('PLAN PRO REQUIS');
+    expect(compiled.textContent).toContain("Débloquez l'Analyste IA Exécutif");
   });
 
   it('renders prerequisite notice when canGenerate is false and no insights exist', () => {

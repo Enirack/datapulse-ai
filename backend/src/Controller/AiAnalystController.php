@@ -28,6 +28,15 @@ final class AiAnalystController
     #[Route('/api/datasets/{datasetId}/versions/{versionId}/insights', name: 'api_datasets_insights_trigger', methods: ['POST'])]
     public function trigger(string $datasetId, string $versionId, Request $request, #[CurrentUser] User $user): JsonResponse
     {
+        if (!$user->getPlan()->canUseAiAnalyst()) {
+            return new JsonResponse([
+                'status' => 'error',
+                'code' => 'UPGRADE_REQUIRED_AI_ANALYST',
+                'message' => "L'Analyste IA exécutif et les synthèses intelligentes sont réservés au plan Pro. Passez au plan Pro pour débloquer l'IA.",
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
+
         $dataset = $this->accessGuard->getOwnedDataset($datasetId, $user);
         $version = $this->accessGuard->getOwnedDatasetVersion($dataset, $versionId);
 
@@ -59,6 +68,15 @@ final class AiAnalystController
     #[Route('/api/datasets/{datasetId}/versions/{versionId}/insights/ask', name: 'api_datasets_insights_ask', methods: ['POST'])]
     public function ask(string $datasetId, string $versionId, Request $request, #[CurrentUser] User $user): JsonResponse
     {
+        if (!$user->getPlan()->canUseAiAnalyst()) {
+            return new JsonResponse([
+                'status' => 'error',
+                'code' => 'UPGRADE_REQUIRED_AI_ANALYST',
+                'message' => "Le chat décisionnel et les questions à l'Analyste IA sont réservés au plan Pro. Passez au plan Pro pour poser des questions.",
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
+
         $dataset = $this->accessGuard->getOwnedDataset($datasetId, $user);
         $version = $this->accessGuard->getOwnedDatasetVersion($dataset, $versionId);
 

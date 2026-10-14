@@ -82,6 +82,52 @@
   align-items: center;
   gap: 0.75rem;
 
+  .plan-badge-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    .badge-pro {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ffd700;
+      background: rgba(255, 215, 0, 0.15);
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+    }
+
+    .badge-free {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+    }
+
+    .btn-upgrade-nav {
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+      color: #fff;
+      border: none;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow-sm);
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px var(--brand-primary-subtle);
+      }
+    }
+  }
+
   .theme-toggle {
     display: flex;
     align-items: center;

@@ -45,7 +45,7 @@ abstract class ApiTestCase extends WebTestCase
     /**
      * @return array<string, mixed> the decoded registration response body
      */
-    protected function registerUser(KernelBrowser $client, string $email, string $password, ?string $accessKey = 'DP-DEMO-2026'): array
+    protected function registerUser(KernelBrowser $client, string $email, string $password, ?string $accessKey = 'DP-VIP-ACCESS'): array
     {
         $payload = ['email' => $email, 'password' => $password];
         if ($accessKey !== null) {

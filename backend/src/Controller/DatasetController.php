@@ -38,6 +38,20 @@ final class DatasetController
     #[Route('/api/datasets', name: 'api_datasets_create', methods: ['POST'])]
     public function create(Request $request, #[CurrentUser] User $user): JsonResponse
     {
+        $currentCount = $this->datasetRepository->countForOwner($user);
+        if ($currentCount >= $user->getPlan()->maxDatasets()) {
+            return new JsonResponse([
+                'status' => 'error',
+                'code' => 'QUOTA_EXCEEDED_DATASETS',
+                'message' => sprintf(
+                    'Limite atteinte pour le plan %s (%d datasets max). Passez au plan Pro pour débloquer des datasets illimités.',
+                    strtoupper($user->getPlan()->value),
+                    $user->getPlan()->maxDatasets(),
+                ),
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
+
         $file = $request->files->get('file');
         $name = $request->request->get('name');
         $description = $request->request->get('description');

@@ -58,7 +58,14 @@ describe('DatasetListComponent', () => {
   let fixture: ComponentFixture<DatasetListComponent>;
   let component: DatasetListComponent;
   let datasetServiceSpy: { list: ReturnType<typeof vi.fn>; upload: ReturnType<typeof vi.fn> };
-  let authServiceSpy: { logout: ReturnType<typeof vi.fn>; isAuthenticated: ReturnType<typeof vi.fn> };
+  let authServiceSpy: {
+    logout: ReturnType<typeof vi.fn>;
+    isAuthenticated: ReturnType<typeof vi.fn>;
+    isPro: ReturnType<typeof vi.fn>;
+    plan: ReturnType<typeof vi.fn>;
+    limits: ReturnType<typeof vi.fn>;
+    upgrade: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     datasetServiceSpy = {
@@ -68,6 +75,15 @@ describe('DatasetListComponent', () => {
     authServiceSpy = {
       logout: vi.fn(),
       isAuthenticated: vi.fn().mockReturnValue(true),
+      isPro: vi.fn().mockReturnValue(true),
+      plan: vi.fn().mockReturnValue('pro'),
+      limits: vi.fn().mockReturnValue({
+        maxDatasets: 100,
+        maxUploadSizeBytes: 52428800,
+        canUseAiAnalyst: true,
+        canApplyCleaning: true,
+      }),
+      upgrade: vi.fn().mockReturnValue(of({ plan: 'pro' })),
     };
 
     await TestBed.configureTestingModule({

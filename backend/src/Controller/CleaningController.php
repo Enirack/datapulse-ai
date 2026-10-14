@@ -71,6 +71,15 @@ final class CleaningController
     #[Route('/api/datasets/{datasetId}/versions/{versionId}/clean', name: 'api_datasets_clean_trigger', methods: ['POST'])]
     public function clean(string $datasetId, string $versionId, Request $request, #[CurrentUser] User $user): JsonResponse
     {
+        if (!$user->getPlan()->canApplyCleaning()) {
+            return new JsonResponse([
+                'status' => 'error',
+                'code' => 'UPGRADE_REQUIRED_CLEANING',
+                'message' => "L'application du nettoyage automatique et le versioning de données sont réservés au plan Pro. Passez au plan Pro pour appliquer le nettoyage.",
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
+
         $dataset = $this->accessGuard->getOwnedDataset($datasetId, $user);
         $version = $this->accessGuard->getOwnedDatasetVersion($dataset, $versionId);
 

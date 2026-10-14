@@ -18,6 +18,19 @@
     </nav>
 
     <div class="app-shell__actions">
+      @if (auth.isAuthenticated()) {
+        <div class="plan-badge-group">
+          @if (auth.isPro()) {
+            <span class="badge-pro" title="Plan Pro actif">⭐ PRO</span>
+          } @else {
+            <span class="badge-free" title="Plan Gratuit (2 datasets max)">Gratuit</span>
+            <button type="button" class="btn-upgrade-nav" (click)="upgradeToPro()">
+              ⭐ Passer Pro
+            </button>
+          }
+        </div>
+      }
+
       <button
         type="button"
         class="theme-toggle"

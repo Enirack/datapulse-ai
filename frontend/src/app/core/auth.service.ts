@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
 import { ApiService } from './api.service';
+import { PlanLimits, PlanType, UserProfile } from './models';
 
 const TOKEN_STORAGE_KEY = 'datapulse.auth.token';
 
@@ -12,7 +13,16 @@ interface LoginResponse {
 interface RegisterResponse {
   id: string;
   email: string;
+  plan: PlanType;
+  limits: PlanLimits;
 }
+
+const DEFAULT_LIMITS: PlanLimits = {
+  maxDatasets: 2,
+  maxUploadSizeBytes: 5 * 1024 * 1024,
+  canUseAiAnalyst: false,
+  canApplyCleaning: false,
+};
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -21,13 +31,41 @@ export class AuthService {
   private readonly tokenSignal = signal<string | null>(this.readStoredToken());
   readonly isAuthenticated = computed(() => this.tokenSignal() !== null);
 
+  readonly currentUser = signal<UserProfile | null>(null);
+  readonly plan = computed<PlanType>(() => this.currentUser()?.plan ?? 'free');
+  readonly isPro = computed<boolean>(() => this.plan() === 'pro' || this.plan() === 'business');
+  readonly limits = computed<PlanLimits>(() => this.currentUser()?.limits ?? DEFAULT_LIMITS);
+
+  constructor() {
+    if (this.isAuthenticated()) {
+      this.fetchProfile().subscribe({
+        error: () => this.logout(),
+      });
+    }
+  }
+
   token(): string | null {
     return this.tokenSignal();
   }
 
   login(email: string, password: string): Observable<LoginResponse> {
     return this.api.post<LoginResponse>('/auth/login', { email, password }).pipe(
-      tap((response) => this.setToken(response.token)),
+      tap((response) => {
+        this.setToken(response.token);
+        this.fetchProfile().subscribe();
+      }),
+    );
+  }
+
+  fetchProfile(): Observable<UserProfile> {
+    return this.api.get<UserProfile>('/me').pipe(
+      tap((profile) => this.currentUser.set(profile)),
+    );
+  }
+
+  upgrade(targetPlan: 'pro' | 'business' = 'pro'): Observable<UserProfile> {
+    return this.api.post<UserProfile>('/me/upgrade', { plan: targetPlan }).pipe(
+      tap((profile) => this.currentUser.set(profile)),
     );
   }
 
@@ -40,6 +78,7 @@ export class AuthService {
   }
 
   logout(): void {
+    this.currentUser.set(null);
     this.setToken(null);
   }
 

@@ -65,8 +65,9 @@ final class DatasetIngestionService
         // A 0-byte upload is not a malformed filename — let the
         // format-specific validator reject it with a meaningful message
         // (e.g. "CSV file has no parseable rows").
-        if ($size > $this->maxUploadSize) {
-            throw UploadRejectedException::tooLarge($this->maxUploadSize);
+        $effectiveMaxUpload = min($this->maxUploadSize, $owner->getPlan()->maxUploadSizeBytes());
+        if ($size > $effectiveMaxUpload) {
+            throw UploadRejectedException::tooLarge($effectiveMaxUpload);
         }
 
         $sanitizedFilename = $this->filenameSanitizer->sanitize($file->getClientOriginalName());

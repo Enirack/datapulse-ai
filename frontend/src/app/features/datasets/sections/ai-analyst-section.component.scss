@@ -60,6 +60,63 @@
 
 .initial-state {
   margin: 1.5rem 0;
+
+  .pro-paywall-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.08));
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 12px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    box-shadow: var(--shadow-sm);
+
+    .pro-paywall-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #eab308;
+      background: rgba(234, 179, 8, 0.15);
+      border: 1px solid rgba(234, 179, 8, 0.35);
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin: 0;
+      max-width: 600px;
+    }
+
+    .btn-upgrade-pro {
+      margin-top: 0.5rem;
+      padding: 0.65rem 1.35rem;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow-sm);
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px var(--brand-primary-subtle);
+      }
+    }
+  }
 }
 
 .notice {
