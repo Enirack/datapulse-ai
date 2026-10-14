@@ -21,7 +21,7 @@ final class SecurityHeadersListenerTest extends WebTestCase
         self::assertSame('strict-origin-when-cross-origin', $headers->get('Referrer-Policy'));
         self::assertSame('none', $headers->get('X-Permitted-Cross-Domain-Policies'));
         self::assertSame('same-origin', $headers->get('Cross-Origin-Opener-Policy'));
-        self::assertSame('same-origin', $headers->get('Cross-Origin-Resource-Policy'));
+        self::assertSame('cross-origin', $headers->get('Cross-Origin-Resource-Policy'));
         self::assertStringContainsString('frame-ancestors', (string) $headers->get('Content-Security-Policy'));
     }
 }
