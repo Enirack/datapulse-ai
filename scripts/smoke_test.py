@@ -26,6 +26,12 @@ import urllib.parse
 import urllib.request
 import uuid
 
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 
 class Colors:
     GREEN = "\033[92m"
@@ -41,7 +47,7 @@ def log_step(step_num: int, title: str):
 
 
 def log_success(message: str):
-    print(f"  {Colors.GREEN}✓ {message}{Colors.RESET}")
+    print(f"  {Colors.GREEN}[OK] {message}{Colors.RESET}")
 
 
 def log_error(message: str):
@@ -225,7 +231,7 @@ def run_smoke_test(base_url: str) -> bool:
     # -------------------------------------------------------------
     log_step(5, "Deterministic Data Profiling")
     prof_status, prof_body = client.request("POST", f"/api/datasets/{dataset_id}/versions/{version_id}/profile")
-    if prof_status != 200 or not isinstance(prof_body, dict) or prof_body.get("status") != "completed":
+    if prof_status not in (200, 201) or not isinstance(prof_body, dict) or prof_body.get("status") != "completed":
         log_error(f"Profiling failed: status {prof_status}, response: {prof_body}")
         return False
 
@@ -287,7 +293,7 @@ def run_smoke_test(base_url: str) -> bool:
         f"/api/datasets/{dataset_id}/versions/{version_id}/clean",
         {"operations": [{"type": "remove_duplicate_rows"}]},
     )
-    if clean_status != 200 or not isinstance(clean_body, dict) or clean_body.get("status") != "completed":
+    if clean_status not in (200, 201) or not isinstance(clean_body, dict) or clean_body.get("status") != "completed":
         log_error(f"Cleaning execution failed: status {clean_status}, response: {clean_body}")
         return False
 
@@ -300,7 +306,7 @@ def run_smoke_test(base_url: str) -> bool:
     target_ver = cleaned_version_id or version_id
     log_step(7, f"Statistical Analytics & Visualizations (version {target_ver})")
     ana_status, ana_body = client.request("POST", f"/api/datasets/{dataset_id}/versions/{target_ver}/analytics")
-    if ana_status != 200 or not isinstance(ana_body, dict) or ana_body.get("status") != "completed":
+    if ana_status not in (200, 201) or not isinstance(ana_body, dict) or ana_body.get("status") != "completed":
         log_error(f"Analytics failed: status {ana_status}, response: {ana_body}")
         return False
 
@@ -314,7 +320,7 @@ def run_smoke_test(base_url: str) -> bool:
     # -------------------------------------------------------------
     log_step(8, "AI Analyst Synthesis (Executive Narrative & Hygiene Score)")
     ai_status, ai_body = client.request("POST", f"/api/datasets/{dataset_id}/versions/{target_ver}/insights")
-    if ai_status != 200 or not isinstance(ai_body, dict) or ai_body.get("status") != "completed":
+    if ai_status not in (200, 201) or not isinstance(ai_body, dict) or ai_body.get("status") != "completed":
         log_error(f"AI insights synthesis failed: status {ai_status}, response: {ai_body}")
         return False
 
@@ -331,7 +337,7 @@ def run_smoke_test(base_url: str) -> bool:
     log_step(9, "AI Analyst Zero-Hallucination Q&A")
     qa_status, qa_body = client.request(
         "POST",
-        f"/api/datasets/{dataset_id}/versions/{target_ver}/ask",
+        f"/api/datasets/{dataset_id}/versions/{target_ver}/insights/ask",
         {"question": "What is the average spend?"},
     )
     if qa_status != 200 or not isinstance(qa_body, dict):
