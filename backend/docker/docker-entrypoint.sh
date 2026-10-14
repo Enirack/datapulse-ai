@@ -7,7 +7,7 @@ if [ ! -f config/jwt/private.pem ] || [ ! -f config/jwt/public.pem ]; then
     php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction
 fi
 
-mkdir -p var/storage/datasets
+mkdir -p var/storage/datasets var/storage/tmp
 
 # Auto-run database migrations on container startup if enabled
 if [ "${AUTO_MIGRATE:-1}" = "1" ]; then

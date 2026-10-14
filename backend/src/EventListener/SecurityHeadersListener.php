@@ -34,7 +34,7 @@ final class SecurityHeadersListener
 
         // Isolate browsing context
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
-        $headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        $headers->set('Cross-Origin-Resource-Policy', 'cross-origin');
 
         // Disallow embedding for API responses
         if (!$headers->has('Content-Security-Policy')) {

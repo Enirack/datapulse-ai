@@ -124,7 +124,7 @@ final class AuthController
             return new JsonResponse(['status' => 'error', 'message' => 'Invalid JSON body.'], 400);
         }
 
-        $targetPlan = strtolower((string) ($payload['plan'] ?? 'pro'));
+        $targetPlan = strtolower((string) ($payload['plan'] ?? $payload['targetPlan'] ?? 'pro'));
         $planEnum = match ($targetPlan) {
             'business' => Plan::Business,
             'free' => Plan::Free,
