@@ -45,13 +45,18 @@ abstract class ApiTestCase extends WebTestCase
     /**
      * @return array<string, mixed> the decoded registration response body
      */
-    protected function registerUser(KernelBrowser $client, string $email, string $password): array
+    protected function registerUser(KernelBrowser $client, string $email, string $password, ?string $accessKey = 'DP-DEMO-2026'): array
     {
+        $payload = ['email' => $email, 'password' => $password];
+        if ($accessKey !== null) {
+            $payload['access_key'] = $accessKey;
+        }
+
         $client->request(
             'POST',
             '/api/auth/register',
             server: ['CONTENT_TYPE' => 'application/json'],
-            content: json_encode(['email' => $email, 'password' => $password], \JSON_THROW_ON_ERROR),
+            content: json_encode($payload, \JSON_THROW_ON_ERROR),
         );
 
         return json_decode($client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);

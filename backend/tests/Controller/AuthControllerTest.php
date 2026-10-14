@@ -49,6 +49,30 @@ final class AuthControllerTest extends ApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
+    public function testRegisterRejectsMissingAccessKey(): void
+    {
+        $client = static::createClient();
+
+        $data = $this->registerUser($client, 'unauthorized@example.test', 'correct-horse-battery', accessKey: null);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('error', $data['status']);
+        self::assertStringContainsString("Clé d'accès requise", $data['message']);
+        self::assertSame('Enirack', $data['contact']['author']);
+        self::assertSame('https://github.com/Enirack', $data['contact']['github']);
+    }
+
+    public function testRegisterRejectsInvalidAccessKey(): void
+    {
+        $client = static::createClient();
+
+        $data = $this->registerUser($client, 'invalidkey@example.test', 'correct-horse-battery', accessKey: 'WRONG-KEY-XYZ');
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('error', $data['status']);
+        self::assertStringContainsString("Clé d'accès requise ou invalide", $data['message']);
+    }
+
     public function testRegisterRejectsMalformedJsonBodyWith400(): void
     {
         $client = static::createClient();

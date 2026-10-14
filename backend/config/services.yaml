@@ -7,10 +7,12 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    env(DATAPULSE_INVITE_KEYS): 'DP-DEMO-2026,DP-VIP-ACCESS'
     app.max_upload_size: '%env(int:MAX_UPLOAD_SIZE)%'
     app.dataset_storage_dir: '%env(resolve:DATASET_STORAGE_DIR)%'
     app.dataset_tmp_dir: '%env(resolve:DATASET_TMP_DIR)%'
     app.data_engine_url: '%env(resolve:DATA_ENGINE_URL)%'
+    app.invite_keys: '%env(string:DATAPULSE_INVITE_KEYS)%'
 
 services:
     # default configuration for services in *this* file
@@ -22,6 +24,7 @@ services:
             string $rootDir: '%app.dataset_storage_dir%'
             string $tmpDir: '%app.dataset_tmp_dir%'
             string $dataEngineBaseUrl: '%app.data_engine_url%'
+            string $inviteKeys: '%app.invite_keys%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

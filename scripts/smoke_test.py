@@ -137,17 +137,29 @@ def run_smoke_test(base_url: str) -> bool:
     log_success(f"Backend healthy (service: {body.get('service')}, database: {db_status})")
 
     # -------------------------------------------------------------
-    # Step 2 & 3: Authentication (Register & Login)
+    # Step 2 & 3: Authentication (Access Control, Register & Login)
     # -------------------------------------------------------------
-    log_step(2, "User Registration & JWT Login")
+    log_step(2, "Access Control Security Check & User Registration")
     test_email = f"smoketest_{uuid.uuid4().hex[:8]}@datapulse.test"
     test_password = "P@ssword_Secure_2026!"
 
-    reg_status, reg_body = client.request("POST", "/api/auth/register", {"email": test_email, "password": test_password})
+    # 2a. Verify access control rejects registration without access key
+    unauth_status, _ = client.request("POST", "/api/auth/register", {"email": test_email, "password": test_password})
+    if unauth_status != 403:
+        log_error(f"Access control enforcement check failed: expected 403, got {unauth_status}")
+        return False
+    log_success("Access control verified: registration without access key rejected with HTTP 403")
+
+    # 2b. Register with authorized access key
+    reg_status, reg_body = client.request(
+        "POST",
+        "/api/auth/register",
+        {"email": test_email, "password": test_password, "access_key": "DP-DEMO-2026"},
+    )
     if reg_status not in (200, 201):
         log_error(f"Registration failed: status {reg_status}, response: {reg_body}")
         return False
-    log_success(f"Registered user: {test_email}")
+    log_success(f"Registered user with valid access key: {test_email}")
 
     login_status, login_body = client.request("POST", "/api/auth/login", {"email": test_email, "password": test_password})
     if login_status != 200 or not isinstance(login_body, dict) or "token" not in login_body:

@@ -24,6 +24,7 @@ final class AuthController
         private readonly UserRepository $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly ValidatorInterface $validator,
+        private readonly string $inviteKeys,
     ) {
     }
 
@@ -38,9 +39,23 @@ final class AuthController
 
         $rawEmail = \is_string($payload['email'] ?? null) ? trim($payload['email']) : '';
         $password = \is_string($payload['password'] ?? null) ? $payload['password'] : '';
+        $rawAccessKey = \is_string($payload['access_key'] ?? null) ? trim($payload['access_key']) : '';
 
-        if (str_contains($rawEmail, "\0") || str_contains($password, "\0")) {
+        if (str_contains($rawEmail, "\0") || str_contains($password, "\0") || str_contains($rawAccessKey, "\0")) {
             return new JsonResponse(['status' => 'error', 'message' => 'Null bytes are not permitted.'], 400);
+        }
+
+        $validKeys = array_values(array_filter(array_map('trim', explode(',', $this->inviteKeys))));
+        if ($rawAccessKey === '' || !\in_array($rawAccessKey, $validKeys, true)) {
+            return new JsonResponse([
+                'status' => 'error',
+                'message' => "Clé d'accès requise ou invalide. Pour obtenir une clé d'accès au projet, veuillez contacter Enirack sur GitHub ou par email.",
+                'contact' => [
+                    'author' => 'Enirack',
+                    'github' => 'https://github.com/Enirack',
+                    'email' => 'enirackjerrydada@gmail.com',
+                ],
+            ], 403);
         }
 
         $email = mb_strtolower($rawEmail);

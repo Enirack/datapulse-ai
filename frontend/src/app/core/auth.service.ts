@@ -31,8 +31,12 @@ export class AuthService {
     );
   }
 
-  register(email: string, password: string): Observable<RegisterResponse> {
-    return this.api.post<RegisterResponse>('/auth/register', { email, password });
+  register(email: string, password: string, accessKey?: string): Observable<RegisterResponse> {
+    const payload: { email: string; password: string; access_key?: string } = { email, password };
+    if (accessKey) {
+      payload.access_key = accessKey;
+    }
+    return this.api.post<RegisterResponse>('/auth/register', payload);
   }
 
   logout(): void {

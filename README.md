@@ -45,6 +45,16 @@ datapulse-ai/
 └── README.md
 ```
 
+## 🔒 Accès & Clé d'invitation (Access Control)
+
+Pour utiliser la plateforme ou créer un compte utilisateur, une **clé d'accès autorisée** est requise à l'inscription.
+Pour tester ou déployer **DataPulse AI**, contactez l'auteur pour obtenir votre clé d'accès :
+
+- **GitHub** : [@Enirack](https://github.com/Enirack)
+- **Email** : [enirackjerrydada@gmail.com](mailto:enirackjerrydada@gmail.com?subject=Demande%20de%20cl%C3%A9%20d%27acc%C3%A8s%20DataPulse%20AI)
+
+> Les administrateurs peuvent configurer ou renouveler les clés d'accès autorisées via la variable `DATAPULSE_INVITE_KEYS` dans le fichier `.env`.
+
 ## Quick start
 
 ```bash

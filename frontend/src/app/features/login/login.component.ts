@@ -18,6 +18,7 @@ export class LoginComponent {
 
   protected email = '';
   protected password = '';
+  protected accessKey = '';
   protected mode = signal<'login' | 'register'>('login');
   protected submitting = signal(false);
   protected errorMessage = signal<string | null>(null);
@@ -36,7 +37,13 @@ export class LoginComponent {
     this.errorMessage.set(null);
 
     if (this.mode() === 'register') {
-      this.auth.register(this.email, this.password).subscribe({
+      if (!this.accessKey.trim()) {
+        this.submitting.set(false);
+        this.errorMessage.set("Une clé d'accès est requise pour créer un compte. Contactez Enirack sur GitHub ou par email pour demander un accès.");
+        return;
+      }
+
+      this.auth.register(this.email, this.password, this.accessKey.trim()).subscribe({
         next: () => this.performLogin(),
         error: (error: ApiError) => this.handleError(error),
       });
